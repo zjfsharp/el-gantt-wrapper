@@ -173,12 +173,15 @@
               :style="{
                 left: `${getBarLeftPosition(project)}px`,
                 width: `${getBarWidth(project)}px`,
-                backgroundColor: getBarColor(project.progress)
+                backgroundColor: getBarBackgroundColor(project.progress)
               }"
               @click="handleDetail(project)">
               <div 
                 class="progress-indicator" 
-                :style="{ width: `${project.progress}%` }">
+                :style="{ 
+                  width: `${project.progress}%`,
+                  backgroundColor: getBarColor(project.progress)
+                }">
               </div>
               <span class="bar-label">{{ project.name }} ({{ project.progress }}%)</span>
             </div>
@@ -569,11 +572,18 @@ export default {
       return this.cellWidth;
     },
     getBarColor(progress) {
-      // 根据进度设置不同的颜色
-      return progress < 30 ? '#F56C6C' : 
-             progress < 60 ? '#E6A23C' : 
-             progress < 100 ? '#409EFF' : 
-             '#67C23A';
+      // 根据进度设置不同的颜色 - 这里返回实际进度的颜色，应当清晰明亮
+      return progress < 30 ? '#F56C6C' : // 红色 - 低进度
+             progress < 60 ? '#E6A23C' : // 橙色 - 中进度
+             progress < 100 ? '#409EFF' : // 蓝色 - 高进度
+             '#67C23A'; // 绿色 - 已完成
+    },
+    getBarBackgroundColor(progress) {
+      // 返回进度条背景的浅色版本，作为总长度的背景色
+      return progress < 30 ? 'rgba(245, 108, 108, 0.2)' : // 浅红色
+             progress < 60 ? 'rgba(230, 162, 60, 0.2)' : // 浅橙色
+             progress < 100 ? 'rgba(64, 158, 255, 0.2)' : // 浅蓝色
+             'rgba(103, 194, 58, 0.2)'; // 浅绿色
     },
     getPriorityType(priority) {
       switch (priority) {
@@ -1092,7 +1102,7 @@ h2 {
   border-radius: 4px;
   z-index: 3; /* 确保在网格线之上 */
   cursor: pointer;
-  overflow: hidden;
+  overflow: visible; /* 允许标签显示在进度条外部 */
   transition: all 0.3s;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -1105,9 +1115,11 @@ h2 {
 
 .progress-indicator {
   height: 100%;
-  background-color: rgba(255, 255, 255, 0.3);
-  border-radius: inherit;
   position: relative;
+  transition: width 0.3s ease-out;
+  border-radius: inherit;
+  z-index: 2;
+  overflow: hidden; /* 防止内容溢出进度指示器 */
 }
 
 .progress-indicator::after {
@@ -1116,8 +1128,9 @@ h2 {
   right: 0;
   top: 0;
   bottom: 0;
-  width: 1px;
-  background-color: rgba(0, 0, 0, 0.1);
+  width: 3px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 0 2px 2px 0;
 }
 
 .bar-label {
@@ -1129,13 +1142,22 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 13px; /* 增加字体大小 */
+  color: #585858; /* 深色文本，适合在浅色背景上 */
+  font-size: 13px;
   white-space: nowrap;
-  padding: 0 10px; /* 增加内边距 */
-  z-index: 3;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  padding: 0 10px;
+  z-index: 4; /* 确保在所有内容之上 */
+  /* text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.8), -1px -1px 0 rgba(255, 255, 255, 0.8); 文本轮廓，增强可读性 */
+  pointer-events: none;
+  font-weight: 600;
+  overflow: visible;
 }
+
+/* 删除可能有问题的选择器 */
+/* .progress-indicator + .bar-label {
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+} */
 
 .current-month-indicator {
   position: absolute;
