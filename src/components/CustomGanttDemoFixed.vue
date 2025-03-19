@@ -80,13 +80,64 @@
                 'year-boundary-left': month.month === 1 && index > 0
               }"
               :style="{ width: `${month.width}px` }">
-              {{ month.month }}
+              {{ month.month }}月
             </div>
           </div>
         </div>
         
         <!-- 甘特图内容 -->
         <div class="gantt-body">
+          <!-- 水平网格线 -->
+          <div class="horizontal-grid-lines">
+            <div 
+              v-for="(project, index) in projectsData" 
+              :key="`hgrid-${index}`"
+              class="horizontal-grid-line"
+              :style="{ top: `${index * rowHeight}px` }">
+            </div>
+            <!-- 最后一行的底部线 -->
+            <div 
+              class="horizontal-grid-line"
+              :style="{ top: `${projectsData.length * rowHeight}px` }">
+            </div>
+          </div>
+          
+          <!-- 月份分隔线 -->
+          <div class="month-grid-lines">
+            <div 
+              v-for="(month, monthIndex) in monthHeaders" 
+              :key="monthIndex"
+              class="month-grid-line"
+              :class="{ 
+                'current-month': month.isCurrent,
+                'year-boundary': month.month === 1 && monthIndex > 0
+              }"
+              :style="{ 
+                left: `${getMonthPosition(monthIndex)}px`,
+                height: `${projectsData.length * rowHeight}px`
+              }">
+            </div>
+            <!-- 最后一个月的右边界 -->
+            <div 
+              class="month-grid-line"
+              :style="{ 
+                left: `${getTotalWidth()}px`,
+                height: `${projectsData.length * rowHeight}px`
+              }">
+            </div>
+          </div>
+          
+          <!-- 当前月份高亮区域 -->
+          <div 
+            v-if="getCurrentMonthIndex() >= 0"
+            class="current-month-highlight"
+            :style="{ 
+              left: `${getMonthPosition(getCurrentMonthIndex())}px`,
+              width: `${monthHeaders[getCurrentMonthIndex()].width}px`,
+              height: `${projectsData.length * rowHeight}px`
+            }">
+          </div>
+          
           <!-- 当前月份指示线 -->
           <div class="current-month-indicator" :style="{ left: `${currentMonthPosition}px` }"></div>
           
@@ -95,21 +146,7 @@
             v-for="(project, index) in projectsData" 
             :key="project.id"
             class="gantt-row"
-            :style="{ height: `${rowHeight}px` }">
-            <!-- 背景网格 -->
-            <div class="grid-row">
-              <div 
-                v-for="(month, monthIndex) in monthHeaders" 
-                :key="monthIndex"
-                class="grid-cell"
-                :class="{ 
-                  'current-month': month.isCurrent,
-                  'year-boundary-left': month.month === 1 && monthIndex > 0
-                }"
-                :style="{ width: `${month.width}px` }">
-              </div>
-            </div>
-            
+            :style="{ height: `${rowHeight}px`, top: `${index * rowHeight}px` }">
             <!-- 项目进度条 -->
             <div 
               class="gantt-bar" 
@@ -161,7 +198,7 @@ export default {
       projectsData: [],
       yearHeaders: [],
       monthHeaders: [],
-      cellWidth: 30,
+      cellWidth: 50,
       rowHeight: 60,
       startYearMonth: '',
       endYearMonth: '',
@@ -261,31 +298,44 @@ export default {
       
       this.monthHeaders = monthHeaders;
     },
-    calculateCurrentMonthPosition() {
+    getMonthPosition(monthIndex) {
+      if (monthIndex < 0 || monthIndex >= this.monthHeaders.length) {
+        return 0;
+      }
+      let position = 0;
+      for (let i = 0; i < monthIndex; i++) {
+        position += this.monthHeaders[i].width;
+      }
+      return position;
+    },
+    getTotalWidth() {
+      let width = 0;
+      for (let i = 0; i < this.monthHeaders.length; i++) {
+        width += this.monthHeaders[i].width;
+      }
+      return width;
+    },
+    getCurrentMonthIndex() {
       const currentParts = this.currentYearMonth.split('-');
       const currentYear = parseInt(currentParts[0]);
       const currentMonth = parseInt(currentParts[1]);
       
-      let position = 0;
-      let found = false;
-      
-      // 找到当前月份并计算位置
       for (let i = 0; i < this.monthHeaders.length; i++) {
         const header = this.monthHeaders[i];
-        
         if (header.year === currentYear && header.month === currentMonth) {
-          // 计算前面所有月份的宽度之和，再加上当前月份的一半
-          found = true;
-          position = 0;
-          for (let j = 0; j < i; j++) {
-            position += this.monthHeaders[j].width;
-          }
-          position += header.width / 2; // 当前月份宽度的一半
-          break;
+          return i;
         }
       }
-      
-      this.currentMonthPosition = found ? position : 0;
+      return -1;
+    },
+    calculateCurrentMonthPosition() {
+      const index = this.getCurrentMonthIndex();
+      if (index >= 0) {
+        const width = this.monthHeaders[index].width;
+        this.currentMonthPosition = this.getMonthPosition(index) + width / 2;
+      } else {
+        this.currentMonthPosition = 0;
+      }
     },
     getBarLeftPosition(project) {
       const startParts = project.startDate.split('-');
@@ -293,22 +343,21 @@ export default {
       const startMonth = parseInt(startParts[1]);
       
       let position = 0;
+      let found = false;
       
       // 遍历月份头找到对应的位置
       for (let i = 0; i < this.monthHeaders.length; i++) {
         const header = this.monthHeaders[i];
         
         if (header.year === startYear && header.month === startMonth) {
-          // 找到了对应的月份，计算前面所有月份的宽度之和
-          position = 0;
-          for (let j = 0; j < i; j++) {
-            position += this.monthHeaders[j].width;
-          }
+          // 找到了对应的月份
+          found = true;
+          position = this.getMonthPosition(i); // 使用通用方法获取位置
           break;
         }
       }
       
-      return position;
+      return found ? position : 0;
     },
     getBarWidth(project) {
       const startParts = project.startDate.split('-');
@@ -348,9 +397,8 @@ export default {
         return width;
       }
       
-      // 如果没找到，回退到原来的计算方式
-      const months = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
-      return months * this.cellWidth;
+      // 如果没找到，使用默认宽度
+      return this.cellWidth;
     },
     getBarColor(progress) {
       // 根据进度设置不同的颜色
@@ -445,14 +493,15 @@ h2 {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column; /* 年份行在上，月份行在下 */
+  user-select: none; /* 防止用户选中文本 */
 }
 
 .year-row {
   display: flex;
-  height: 36px; /* 增加高度 */
+  height: 36px;
   border-bottom: 1px solid #EBEEF5;
   background-color: #f2f6fc;
-  width: max-content; /* 确保能容纳所有年份 */
+  width: max-content;
 }
 
 .year-cell {
@@ -462,8 +511,8 @@ h2 {
   font-weight: bold;
   border-right: 1px solid #EBEEF5;
   position: relative;
-  font-size: 14px; /* 增加字体大小 */
-  box-sizing: border-box; /* 确保padding不会影响宽度计算 */
+  font-size: 14px;
+  box-sizing: border-box;
 }
 
 .year-cell:not(:last-child)::after {
@@ -478,9 +527,9 @@ h2 {
 
 .month-row {
   display: flex;
-  height: 36px; /* 增加高度 */
+  height: 36px;
   background-color: #f5f7fa;
-  width: max-content; /* 确保能容纳所有月份 */
+  width: max-content;
 }
 
 .month-cell {
@@ -489,9 +538,9 @@ h2 {
   align-items: center;
   border-right: 1px solid #EBEEF5;
   position: relative;
-  padding: 0 8px; /* 添加内边距 */
-  font-size: 13px; /* 调整字体大小 */
-  box-sizing: border-box; /* 确保padding不会影响宽度计算 */
+  padding: 0 8px;
+  font-size: 13px;
+  box-sizing: border-box;
 }
 
 .month-cell.year-boundary-left {
@@ -510,48 +559,77 @@ h2 {
   min-height: 300px;
 }
 
-.gantt-row {
-  position: relative;
-  border-bottom: 1px solid #EBEEF5;
-  transition: background-color 0.2s;
-  height: 60px !important; /* 强制设置行高 */
-}
-
-.gantt-row:hover {
-  background-color: rgba(64, 158, 255, 0.05);
-}
-
-.grid-row {
-  display: flex;
+.horizontal-grid-lines {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   z-index: 1;
+  pointer-events: none;
 }
 
-.grid-cell {
+.horizontal-grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #EBEEF5;
+  z-index: 1;
+}
+
+.month-grid-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
   height: 100%;
-  border-right: 1px solid #EBEEF5;
+  z-index: 1;
+  pointer-events: none;
 }
 
-.grid-cell.current-month {
+.month-grid-line {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  background-color: #EBEEF5;
+}
+
+.month-grid-line.year-boundary {
+  width: 2px;
+  background-color: #DCDFE6;
+}
+
+.month-grid-line.current-month {
+  background-color: rgba(64, 158, 255, 0.3);
+}
+
+.current-month-highlight {
+  position: absolute;
+  top: 0;
   background-color: rgba(64, 158, 255, 0.05);
-  position: relative;
+  z-index: 1;
+  pointer-events: none;
 }
 
-.grid-cell.year-boundary-left {
-  border-left: 2px solid #DCDFE6;
+.gantt-row {
+  position: absolute;
+  width: 100%;
+  border-bottom: 1px solid #EBEEF5;
+  transition: background-color 0.2s;
+}
+
+.gantt-row:hover {
+  background-color: rgba(64, 158, 255, 0.05);
 }
 
 .gantt-bar {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  height: 32px; /* 增加高度 */
+  height: 32px;
   border-radius: 4px;
-  z-index: 2;
+  z-index: 3; /* 确保在网格线之上 */
   cursor: pointer;
   overflow: hidden;
   transition: all 0.3s;
