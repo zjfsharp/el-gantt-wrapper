@@ -139,7 +139,7 @@
           
           <!-- 当前月份高亮区域 -->
           <div 
-            v-if="getCurrentMonthIndex() >= 0"
+            v-if="isCurrentMonthVisible"
             class="current-month-highlight"
             :style="{ 
               left: `${getMonthPosition(getCurrentMonthIndex())}px`,
@@ -150,6 +150,7 @@
           
           <!-- 当前月份指示线 -->
           <div 
+            v-if="isCurrentMonthVisible"
             class="current-month-indicator" 
             :style="{ 
               left: `${currentMonthPosition}px`,
@@ -235,6 +236,7 @@ export default {
       scrollAdjustTimeout: null, // 用于滚动事件处理的防抖
       scrollTimeout: null, // 用于滚动事件处理的防抖
       isUpdatingLines: false, // 防止重复更新网格线
+      isCurrentMonthVisible: false, // 当前月份是否在显示范围内
     };
   },
   created() {
@@ -379,16 +381,25 @@ export default {
         }
       });
       
-      // 设置开始和结束年月
-      this.startYearMonth = `${minDate.getFullYear()}-01`;
+      // 设置开始和结束年月，使用实际数据中的最早月份和最晚月份
+      const startYear = minDate.getFullYear();
+      const startMonth = minDate.getMonth() + 1; // getMonth()返回0-11，需要+1
+      this.startYearMonth = `${startYear}-${startMonth.toString().padStart(2, '0')}`;
+      
       const endYear = maxDate.getFullYear();
-      this.endYearMonth = `${endYear}-12`;
+      const endMonth = maxDate.getMonth() + 1;
+      this.endYearMonth = `${endYear}-${endMonth.toString().padStart(2, '0')}`;
+      
+      console.log(`甘特图显示范围：${this.startYearMonth} 到 ${this.endYearMonth}`);
       
       // 生成年份和月份标题
       this.generateHeaders();
       
       // 计算当前月份位置
       this.calculateCurrentMonthPosition();
+      
+      // 更新当前月份可见性
+      this.updateCurrentMonthVisibility();
       
       // 在渲染完成后调整表格高度并滚动到当前月份
       this.$nextTick(() => {
@@ -414,7 +425,7 @@ export default {
       // 生成年份标题
       const yearHeaders = [];
       for (let year = startYear; year <= endYear; year++) {
-        // 计算本年显示几个月
+        // 计算本年显示几个月 - 根据实际范围
         const startM = year === startYear ? startMonth : 1;
         const endM = year === endYear ? endMonth : 12;
         const months = endM - startM + 1;
@@ -491,27 +502,64 @@ export default {
       const currentYear = parseInt(currentParts[0]);
       const currentMonth = parseInt(currentParts[1]);
       
+      // 检查当前月份是否在显示范围内
+      const startParts = this.startYearMonth.split('-');
+      const endParts = this.endYearMonth.split('-');
+      const startYear = parseInt(startParts[0]);
+      const startMonth = parseInt(startParts[1]);
+      const endYear = parseInt(endParts[0]);
+      const endMonth = parseInt(endParts[1]);
+      
+      // 如果当前月份在范围之外，返回最接近的月份索引
+      if (currentYear < startYear || (currentYear === startYear && currentMonth < startMonth)) {
+        // 当前月份早于起始月份，返回第一个月份
+        return 0;
+      }
+      
+      if (currentYear > endYear || (currentYear === endYear && currentMonth > endMonth)) {
+        // 当前月份晚于结束月份，返回最后一个月份
+        return this.monthHeaders.length - 1;
+      }
+      
+      // 正常情况，查找当前月份的索引
       for (let i = 0; i < this.monthHeaders.length; i++) {
         const header = this.monthHeaders[i];
         if (header.year === currentYear && header.month === currentMonth) {
           return i;
         }
       }
+      
+      // 如果找不到精确匹配（这种情况不应该发生），返回-1
       return -1;
     },
     calculateCurrentMonthPosition() {
       const index = this.getCurrentMonthIndex();
       if (index >= 0) {
+        // 获取当前月份的宽度
         const width = this.monthHeaders[index].width;
+        // 计算当前月份中点位置
         this.currentMonthPosition = this.getMonthPosition(index) + width / 2;
+        console.log(`当前月份位置：${this.currentMonthPosition}px，索引：${index}`);
       } else {
-        this.currentMonthPosition = 0;
+        // 如果找不到当前月份，默认使用甘特图的中间位置
+        this.currentMonthPosition = this.getTotalWidth() / 2;
+        console.log(`未找到当前月份，使用中间位置：${this.currentMonthPosition}px`);
       }
     },
     getBarLeftPosition(project) {
       const startParts = project.startDate.split('-');
       const startYear = parseInt(startParts[0]);
       const startMonth = parseInt(startParts[1]);
+      
+      // 检查项目起始日期是否早于甘特图起始日期
+      const chartStartParts = this.startYearMonth.split('-');
+      const chartStartYear = parseInt(chartStartParts[0]);
+      const chartStartMonth = parseInt(chartStartParts[1]);
+      
+      // 如果项目开始日期早于甘特图开始日期，将项目的开始位置设为甘特图开始位置
+      if (startYear < chartStartYear || (startYear === chartStartYear && startMonth < chartStartMonth)) {
+        return 0; // 从甘特图开始位置开始
+      }
       
       let position = 0;
       let found = false;
@@ -534,10 +582,30 @@ export default {
       const startParts = project.startDate.split('-');
       const endParts = project.endDate.split('-');
       
-      const startYear = parseInt(startParts[0]);
-      const startMonth = parseInt(startParts[1]);
-      const endYear = parseInt(endParts[0]);
-      const endMonth = parseInt(endParts[1]);
+      let startYear = parseInt(startParts[0]);
+      let startMonth = parseInt(startParts[1]);
+      let endYear = parseInt(endParts[0]);
+      let endMonth = parseInt(endParts[1]);
+      
+      // 检查项目日期是否超出甘特图范围，并调整为甘特图范围内
+      const chartStartParts = this.startYearMonth.split('-');
+      const chartEndParts = this.endYearMonth.split('-');
+      const chartStartYear = parseInt(chartStartParts[0]);
+      const chartStartMonth = parseInt(chartStartParts[1]);
+      const chartEndYear = parseInt(chartEndParts[0]);
+      const chartEndMonth = parseInt(chartEndParts[1]);
+      
+      // 如果项目开始日期早于甘特图开始日期，调整为甘特图开始日期
+      if (startYear < chartStartYear || (startYear === chartStartYear && startMonth < chartStartMonth)) {
+        startYear = chartStartYear;
+        startMonth = chartStartMonth;
+      }
+      
+      // 如果项目结束日期晚于甘特图结束日期，调整为甘特图结束日期
+      if (endYear > chartEndYear || (endYear === chartEndYear && endMonth > chartEndMonth)) {
+        endYear = chartEndYear;
+        endMonth = chartEndMonth;
+      }
       
       let startIdx = -1;
       let endIdx = -1;
@@ -833,6 +901,30 @@ export default {
       
       // 直接设置滚动位置，不使用动画
       ganttContainer.scrollLeft = scrollLeft;
+      
+      // 记录日志
+      console.log(`滚动到当前月份位置：${this.currentYearMonth}，索引：${currentMonthIndex}，位置：${currentMonthPos}px`);
+    },
+    // 添加一个辅助方法，检查日期是否在显示范围内
+    isDateInRange(year, month) {
+      const startParts = this.startYearMonth.split('-');
+      const endParts = this.endYearMonth.split('-');
+      const startYear = parseInt(startParts[0]);
+      const startMonth = parseInt(startParts[1]);
+      const endYear = parseInt(endParts[0]);
+      const endMonth = parseInt(endParts[1]);
+      
+      return (year > startYear || (year === startYear && month >= startMonth)) && 
+             (year < endYear || (year === endYear && month <= endMonth));
+    },
+    // 更新是否显示当前月份指示器
+    updateCurrentMonthVisibility() {
+      const currentParts = this.currentYearMonth.split('-');
+      const currentYear = parseInt(currentParts[0]);
+      const currentMonth = parseInt(currentParts[1]);
+      
+      this.isCurrentMonthVisible = this.isDateInRange(currentYear, currentMonth);
+      console.log(`当前月份${this.currentYearMonth}是否在显示范围内: ${this.isCurrentMonthVisible}`);
     },
   },
   watch: {

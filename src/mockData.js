@@ -8,7 +8,7 @@ export const mockProjects = [
     name: '产品设计与开发',
     manager: '张三',
     priority: '高',
-    startDate: '2022-01',
+    startDate: '2022-06',
     endDate: '2023-05',
     progress: 85,
     status: '进行中'
