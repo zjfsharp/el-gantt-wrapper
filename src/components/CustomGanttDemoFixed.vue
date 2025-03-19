@@ -90,19 +90,25 @@
         </div>
         
         <!-- 甘特图内容 -->
-        <div class="gantt-body">
+        <div class="gantt-body" ref="ganttBody">
           <!-- 水平网格线 -->
           <div class="horizontal-grid-lines">
             <div 
               v-for="(project, index) in projectsData" 
               :key="`hgrid-${index}`"
               class="horizontal-grid-line"
-              :style="{ top: `${index * rowHeight}px` }">
+              :style="{ 
+                top: `${index * rowHeight}px`,
+                width: `${getTotalWidth()}px` 
+              }">
             </div>
             <!-- 最后一行的底部线 -->
             <div 
               class="horizontal-grid-line"
-              :style="{ top: `${projectsData.length * rowHeight}px` }">
+              :style="{ 
+                top: `${projectsData.length * rowHeight}px`,
+                width: `${getTotalWidth()}px` 
+              }">
             </div>
           </div>
           
@@ -143,7 +149,17 @@
           </div>
           
           <!-- 当前月份指示线 -->
-          <div class="current-month-indicator" :style="{ left: `${currentMonthPosition}px` }"></div>
+          <div 
+            class="current-month-indicator" 
+            :style="{ 
+              left: `${currentMonthPosition}px`,
+              height: `${projectsData.length * rowHeight}px`
+            }">
+            <!-- 当前日期标签容器 -->
+            <div class="current-date-label-container">
+              <div class="current-date-label">{{ getCurrentDateText() }}</div>
+            </div>
+          </div>
           
           <!-- 项目进度条 -->
           <div 
@@ -211,7 +227,11 @@ export default {
       currentMonthPosition: 0,
       dialogVisible: false,
       currentProject: null,
-      isScrolling: false // 防止滚动事件循环触发
+      isScrolling: false, // 防止滚动事件循环触发
+      resizeTimeout: null, // 用于防抖处理窗口大小变化
+      scrollAdjustTimeout: null, // 用于滚动事件处理的防抖
+      scrollTimeout: null, // 用于滚动事件处理的防抖
+      isUpdatingLines: false, // 防止重复更新网格线
     };
   },
   created() {
@@ -222,7 +242,34 @@ export default {
       this.adjustTableHeaderHeight();
       // 初始化时隐藏表格滚动条
       this.hideTableScrollbars();
+      
+      // 初始化时标准化网格线宽度/高度
+      this.initializeGridLines();
+      
+      // 初始化滚动同步
+      this.initScrollSync();
+      
+      // 恢复滚动到当前月份，但不使用动画
+      this.scrollToCurrentMonth();
+      
+      // 添加窗口大小变化监听器
+      window.addEventListener('resize', this.handleWindowResize);
+      
+      // 添加滚动监听，修改为只用于检查边缘位置
+      const ganttContainer = this.$refs.ganttChartContainer;
+      if (ganttContainer) {
+        ganttContainer.addEventListener('scroll', this.onGanttScroll, { passive: true });
+      }
     });
+  },
+  beforeDestroy() {
+    // 组件销毁前移除事件监听器
+    window.removeEventListener('resize', this.handleWindowResize);
+    
+    const ganttContainer = this.$refs.ganttChartContainer;
+    if (ganttContainer) {
+      ganttContainer.removeEventListener('scroll', this.onGanttScroll);
+    }
   },
   methods: {
     hideTableScrollbars() {
@@ -232,6 +279,9 @@ export default {
         // 隐藏表格的滚动条
         tableBodyWrapper.style.overflowY = 'hidden';
         tableBodyWrapper.style.overflowX = 'hidden';
+        
+        // 添加垂直滚动同步
+        this.initScrollSync();
       }
     },
     
@@ -243,7 +293,6 @@ export default {
       // 获取甘特图滚动容器的滚动位置
       const ganttContainer = this.$refs.ganttChartContainer;
       const scrollTop = ganttContainer.scrollTop;
-      const scrollLeft = ganttContainer.scrollLeft;
       
       // 获取表格体的滚动容器
       const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
@@ -252,9 +301,9 @@ export default {
         tableBodyWrapper.scrollTop = scrollTop;
       }
       
-      this.$nextTick(() => {
+      setTimeout(() => {
         this.isScrolling = false;
-      });
+      }, 10);
     },
     
     adjustTableHeaderHeight() {
@@ -338,10 +387,16 @@ export default {
       // 计算当前月份位置
       this.calculateCurrentMonthPosition();
       
-      // 在渲染完成后调整表格高度
+      // 在渲染完成后调整表格高度并滚动到当前月份
       this.$nextTick(() => {
         this.adjustTableHeaderHeight();
         this.hideTableScrollbars();
+        
+        // 更新网格线尺寸
+        this.updateGridLines();
+        
+        // 恢复滚动到当前月份
+        this.scrollToCurrentMonth();
       });
     },
     generateHeaders() {
@@ -550,6 +605,235 @@ export default {
     handleDetail(row) {
       this.currentProject = row;
       this.dialogVisible = true;
+    },
+    // 获取当前日期的格式化文本
+    getCurrentDateText() {
+      const now = new Date();
+      const month = now.getMonth() + 1; // 月份是从0开始的，所以需要+1
+      const day = now.getDate();
+      const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+      const weekDay = weekDays[now.getDay()];
+      return `${month}月${day}日 (周${weekDay})`;
+    },
+    // 处理窗口大小变化
+    handleWindowResize() {
+      // 使用防抖，避免频繁调用
+      if (this.resizeTimeout) {
+        cancelAnimationFrame(this.resizeTimeout);
+      }
+      
+      this.resizeTimeout = requestAnimationFrame(() => {
+        // 重新计算年份和月份标题布局
+        this.recalculateHeaderLayout();
+        
+        // 重新调整表格头部高度
+        this.adjustTableHeaderHeight();
+        
+        // 更新网格线尺寸
+        this.updateGridLines();
+      });
+    },
+    
+    // 重新计算头部布局
+    recalculateHeaderLayout() {
+      // 重新计算年份和月份的宽度
+      this.generateHeaders();
+      
+      // 重新计算当前月份位置
+      this.calculateCurrentMonthPosition();
+    },
+    
+    // 重置网格线样式
+    resetGridLines() {
+      const ganttBody = this.$refs.ganttBody;
+      if (!ganttBody) return;
+      
+      // 使用classList修改而不是直接设置style属性，提高性能
+      ganttBody.classList.add('resetting-grid-lines');
+      
+      // 使用setTimeout使浏览器有时间应用类样式变更
+      setTimeout(() => {
+        ganttBody.classList.remove('resetting-grid-lines');
+      }, 0);
+    },
+    
+    // 滚动事件处理的防抖
+    onGanttScroll: function() {
+      if (this.scrollTimeout) {
+        cancelAnimationFrame(this.scrollTimeout);
+      }
+      
+      this.scrollTimeout = requestAnimationFrame(() => {
+        const ganttContainer = this.$refs.ganttChartContainer;
+        if (ganttContainer) {
+          // 检查是否需要刷新网格线（当滚动到边缘时）
+          const viewportWidth = ganttContainer.clientWidth;
+          const totalWidth = this.getTotalWidth();
+          const scrollLeft = ganttContainer.scrollLeft;
+          
+          // 如果已经滚动到右侧80%以上，确保网格线宽度足够
+          if (scrollLeft + viewportWidth > totalWidth * 0.8) {
+            this.ensureGridLinesDisplay();
+          }
+        }
+      });
+    },
+    // 确保网格线显示正常
+    ensureGridLinesDisplay() {
+      // 不触发完整的更新，只确保网格线显示
+      const ganttContainer = this.$refs.ganttChartContainer;
+      if (!ganttContainer) return;
+      
+      const ganttBody = this.$refs.ganttBody;
+      if (!ganttBody) return;
+      
+      // 检查是否有网格线已不再可见（宽度或高度不足）
+      const horizontalLines = ganttBody.querySelectorAll('.horizontal-grid-line');
+      const totalWidth = this.getTotalWidth();
+      
+      // 只对第一条线进行检查，如果宽度不足则更新所有线条
+      if (horizontalLines.length > 0) {
+        const firstLine = horizontalLines[0];
+        const lineWidth = parseFloat(getComputedStyle(firstLine).width);
+        
+        if (lineWidth < totalWidth * 0.9) {
+          // 如果网格线宽度不足，重新设置所有网格线
+          this.updateGridLines();
+        }
+      }
+    },
+    // 处理表格垂直滚动事件，同步甘特图垂直滚动位置
+    syncTableScroll() {
+      // 获取表格体的滚动容器
+      const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
+      if (!tableBodyWrapper) return;
+      
+      // 给表格体添加滚动事件监听器
+      tableBodyWrapper.addEventListener('scroll', (e) => {
+        if (this.isScrolling) return;
+        
+        this.isScrolling = true;
+        
+        // 获取表格滚动位置
+        const scrollTop = tableBodyWrapper.scrollTop;
+        
+        // 同步甘特图的垂直滚动位置
+        const ganttContainer = this.$refs.ganttChartContainer;
+        if (ganttContainer) {
+          ganttContainer.scrollTop = scrollTop;
+        }
+        
+        setTimeout(() => {
+          this.isScrolling = false;
+        }, 10);
+      }, { passive: true });
+    },
+    // 初始化双向滚动同步
+    initScrollSync() {
+      this.$nextTick(() => {
+        this.syncTableScroll();
+      });
+    },
+    // 获取总高度（实际项目高度）
+    getTotalHeight() {
+      return this.projectsData.length * this.rowHeight;
+    },
+    
+    // 获取总宽度（实际甘特图宽度）
+    getTotalWidthWithSafety() {
+      return this.getTotalWidth();
+    },
+
+    // 初始化网格线
+    initializeGridLines() {
+      const ganttContainer = this.$refs.ganttChartContainer;
+      if (!ganttContainer) return;
+      
+      // 设置网格线的初始宽度和高度
+      this.updateGridLines();
+    },
+    
+    // 更新网格线尺寸
+    updateGridLines() {
+      if (this.isUpdatingLines) return;
+      
+      this.isUpdatingLines = true;
+      
+      const ganttContainer = this.$refs.ganttChartContainer;
+      if (!ganttContainer) {
+        this.isUpdatingLines = false;
+        return;
+      }
+      
+      // 使用requestAnimationFrame优化性能
+      requestAnimationFrame(() => {
+        // 重置所有网格线样式
+        this.resetGridLines();
+        
+        // 计算总内容宽度和高度
+        const totalWidth = this.getTotalWidth();
+        const totalHeight = this.projectsData.length * this.rowHeight;
+        
+        // 批量更新DOM，减少重排和重绘
+        // 更新水平网格线宽度
+        const horizontalLines = ganttContainer.querySelectorAll('.horizontal-grid-line');
+        horizontalLines.forEach(line => {
+          line.style.width = `${totalWidth}px`;
+        });
+        
+        // 更新垂直网格线高度
+        const verticalLines = ganttContainer.querySelectorAll('.month-grid-line');
+        verticalLines.forEach(line => {
+          line.style.height = `${totalHeight}px`;
+        });
+        
+        // 更新当前月份指示线高度
+        const currentMonthIndicator = ganttContainer.querySelector('.current-month-indicator');
+        if (currentMonthIndicator) {
+          currentMonthIndicator.style.height = `${totalHeight}px`;
+        }
+        
+        // 更新当前月份高亮区域高度
+        const currentMonthHighlight = ganttContainer.querySelector('.current-month-highlight');
+        if (currentMonthHighlight) {
+          currentMonthHighlight.style.height = `${totalHeight}px`;
+        }
+        
+        this.isUpdatingLines = false;
+      });
+    },
+    // 添加scrollToCurrentMonth方法，但不使用动画
+    scrollToCurrentMonth() {
+      // 获取甘特图容器
+      const ganttContainer = this.$refs.ganttChartContainer;
+      if (!ganttContainer) return;
+      
+      // 获取当前月份索引
+      const currentMonthIndex = this.getCurrentMonthIndex();
+      if (currentMonthIndex < 0) return;
+      
+      // 获取当前月份的位置
+      const currentMonthPos = this.getMonthPosition(currentMonthIndex);
+      
+      // 获取甘特图容器的宽度
+      const containerWidth = ganttContainer.clientWidth;
+      
+      // 计算滚动位置，让当前月份显示在视图中间
+      const scrollLeft = Math.max(0, currentMonthPos - (containerWidth / 2) + (this.monthHeaders[currentMonthIndex].width / 2));
+      
+      // 直接设置滚动位置，不使用动画
+      ganttContainer.scrollLeft = scrollLeft;
+    },
+  },
+  watch: {
+    // 监听项目数据变化，更新网格线
+    projectsData: {
+      handler() {
+        this.$nextTick(() => {
+          this.updateGridLines();
+        });
+      },
+      deep: true
     }
   }
 };
@@ -625,7 +909,6 @@ h2 {
   flex-direction: column;
   position: relative;
   background-color: #FAFAFA;
-  /* 自定义滚动条样式 */
   scrollbar-width: thin;
   scrollbar-color: #DCDFE6 #F5F7FA;
 }
@@ -725,6 +1008,7 @@ h2 {
   position: relative;
   overflow: visible;
   min-height: 300px;
+  width: fit-content; /* 使用适应内容的宽度，而不是强制设置最小宽度 */
 }
 
 .horizontal-grid-lines {
@@ -735,6 +1019,7 @@ h2 {
   height: 100%;
   z-index: 1;
   pointer-events: none;
+  transform: translateZ(0); /* 启用GPU加速 */
 }
 
 .horizontal-grid-line {
@@ -744,6 +1029,9 @@ h2 {
   height: 1px;
   background-color: #EBEEF5;
   z-index: 1;
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
+  will-change: width; /* 优化渲染性能 */
+  transition: width 0.1s ease-out; /* 平滑宽度变化 */
 }
 
 .month-grid-lines {
@@ -754,6 +1042,7 @@ h2 {
   height: 100%;
   z-index: 1;
   pointer-events: none;
+  transform: translateZ(0); /* 启用GPU加速 */
 }
 
 .month-grid-line {
@@ -762,6 +1051,9 @@ h2 {
   width: 1px;
   background-color: #EBEEF5;
   box-sizing: border-box; /* 确保边框计入宽度 */
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
+  will-change: height; /* 优化渲染性能 */
+  transition: height 0.1s ease-out; /* 平滑高度变化 */
 }
 
 .month-grid-line.year-boundary {
@@ -854,6 +1146,64 @@ h2 {
   z-index: 5;
   pointer-events: none;
   box-shadow: 0 0 5px rgba(245, 108, 108, 0.5);
+  animation: pulse 2s infinite;
+  will-change: transform, height; /* 优化动画性能 */
+  transition: height 0.1s ease-out; /* 平滑高度变化 */
+  transform: translateZ(0); /* 启用GPU加速 */
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 2px 1px rgba(245, 108, 108, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 6px 2px rgba(245, 108, 108, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 2px 1px rgba(245, 108, 108, 0.3);
+  }
+}
+
+.current-date-label-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  overflow: visible;
+  z-index: 6;
+}
+
+.current-date-label {
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #F56C6C;
+  color: white;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  font-weight: bold;
+  transition: all 0.3s ease;
+  user-select: none;
+  /* 添加箭头位置的自定义属性 */
+  --arrow-left: 50%;
+}
+
+.current-date-label::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-left);
+  bottom: -5px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #F56C6C;
+  transition: left 0.3s ease;
 }
 
 /* 响应式设计优化 */
@@ -881,5 +1231,79 @@ h2 {
     border-right: none;
     border-bottom: 2px solid #DCDFE6;
   }
+}
+
+/* 增强滚动平滑性 */
+.gantt-chart-container {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: #FAFAFA;
+  scrollbar-width: thin;
+  scrollbar-color: #DCDFE6 #F5F7FA;
+}
+
+/* 增强网格线的视觉效果 */
+.horizontal-grid-lines, .month-grid-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+  transform: translateZ(0); /* 启用GPU加速 */
+}
+
+.gantt-body.resetting-grid-lines .horizontal-grid-line,
+.gantt-body.resetting-grid-lines .month-grid-line,
+.gantt-body.resetting-grid-lines .current-month-indicator,
+.gantt-body.resetting-grid-lines .current-month-highlight {
+  transition: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* 增强水平网格线的可见性 */
+.horizontal-grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #EBEEF5;
+  z-index: 1;
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
+  will-change: width; /* 优化渲染性能 */
+  transition: width 0.1s ease-out; /* 平滑宽度变化 */
+}
+
+/* 增强垂直网格线的可见性 */
+.month-grid-line {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  background-color: #EBEEF5;
+  box-sizing: border-box; /* 确保边框计入宽度 */
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
+  will-change: height; /* 优化渲染性能 */
+  transition: height 0.1s ease-out; /* 平滑高度变化 */
+}
+
+/* 当前月份指示线动画优化 */
+.current-month-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #F56C6C;
+  z-index: 5;
+  pointer-events: none;
+  box-shadow: 0 0 5px rgba(245, 108, 108, 0.5);
+  animation: pulse 2s infinite;
+  will-change: transform, height; /* 优化动画性能 */
+  transition: height 0.1s ease-out; /* 平滑高度变化 */
+  transform: translateZ(0); /* 启用GPU加速 */
 }
 </style> 
