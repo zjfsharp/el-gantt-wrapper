@@ -60,7 +60,7 @@
       </div>
       
       <!-- 右侧甘特图部分 -->
-      <div class="gantt-chart-container">
+      <div class="gantt-chart-container" ref="ganttChartContainer" @scroll="handleGanttScroll">
         <!-- 甘特图头部（年月标题） -->
         <div class="gantt-header">
           <!-- 年份行 -->
@@ -210,7 +210,8 @@ export default {
       currentYearMonth: getCurrentYearMonth(),
       currentMonthPosition: 0,
       dialogVisible: false,
-      currentProject: null
+      currentProject: null,
+      isScrolling: false // 防止滚动事件循环触发
     };
   },
   created() {
@@ -219,9 +220,43 @@ export default {
   mounted() {
     this.$nextTick(() => {
       this.adjustTableHeaderHeight();
+      // 初始化时隐藏表格滚动条
+      this.hideTableScrollbars();
     });
   },
   methods: {
+    hideTableScrollbars() {
+      // 获取表格体的滚动容器
+      const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
+      if (tableBodyWrapper) {
+        // 隐藏表格的滚动条
+        tableBodyWrapper.style.overflowY = 'hidden';
+        tableBodyWrapper.style.overflowX = 'hidden';
+      }
+    },
+    
+    handleGanttScroll(e) {
+      if (this.isScrolling) return;
+      
+      this.isScrolling = true;
+      
+      // 获取甘特图滚动容器的滚动位置
+      const ganttContainer = this.$refs.ganttChartContainer;
+      const scrollTop = ganttContainer.scrollTop;
+      const scrollLeft = ganttContainer.scrollLeft;
+      
+      // 获取表格体的滚动容器
+      const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
+      if (tableBodyWrapper) {
+        // 同步垂直滚动位置
+        tableBodyWrapper.scrollTop = scrollTop;
+      }
+      
+      this.$nextTick(() => {
+        this.isScrolling = false;
+      });
+    },
+    
     adjustTableHeaderHeight() {
       // 调整表格头部高度
       const headerEl = this.$refs.ganttTable.$el.querySelector('.el-table__header-wrapper');
@@ -267,7 +302,11 @@ export default {
           });
         });
       }
+      
+      // 隐藏表格滚动条
+      this.hideTableScrollbars();
     },
+    
     initData() {
       this.projectsData = mockProjects;
       
@@ -302,6 +341,7 @@ export default {
       // 在渲染完成后调整表格高度
       this.$nextTick(() => {
         this.adjustTableHeaderHeight();
+        this.hideTableScrollbars();
       });
     },
     generateHeaders() {
@@ -543,7 +583,7 @@ h2 {
 .gantt-table-container {
   flex: 0 0 auto;
   width: 680px; /* 等于所有固定列的宽度总和 */
-  overflow: hidden;
+  overflow: hidden; /* 确保外部容器不显示滚动条 */
   border-right: 2px solid #DCDFE6;
   z-index: 2; /* 确保表格在滚动时位于甘特图上层 */
 }
@@ -566,6 +606,18 @@ h2 {
   height: 60px;
 }
 
+.gantt-table-container /deep/ .el-table__body-wrapper::-webkit-scrollbar {
+  width: 0; /* 隐藏WebKit浏览器滚动条 */
+  height: 0;
+}
+
+.gantt-table-container /deep/ .el-table__body-wrapper {
+  scrollbar-width: none; /* 隐藏Firefox浏览器滚动条 */
+  -ms-overflow-style: none; /* 隐藏IE浏览器滚动条 */
+  overflow-y: hidden !important;
+  overflow-x: hidden !important;
+}
+
 .gantt-chart-container {
   flex: 1;
   overflow: auto;
@@ -573,6 +625,23 @@ h2 {
   flex-direction: column;
   position: relative;
   background-color: #FAFAFA;
+  /* 自定义滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: #DCDFE6 #F5F7FA;
+}
+
+.gantt-chart-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.gantt-chart-container::-webkit-scrollbar-thumb {
+  background-color: #DCDFE6;
+  border-radius: 4px;
+}
+
+.gantt-chart-container::-webkit-scrollbar-track {
+  background-color: #F5F7FA;
 }
 
 .gantt-header {
