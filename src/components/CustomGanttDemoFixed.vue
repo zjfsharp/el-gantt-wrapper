@@ -6,9 +6,13 @@
       <!-- 左侧固定表格 -->
       <div class="gantt-table-container">
         <el-table
+          ref="ganttTable"
           :data="projectsData"
           style="width: 100%"
-          height="100%">
+          height="100%"
+          :header-row-class-name="'gantt-table-header'"
+          :row-class-name="'gantt-table-row'"
+          :row-height="rowHeight">
           <el-table-column
             prop="name"
             label="项目名称"
@@ -200,6 +204,7 @@ export default {
       monthHeaders: [],
       cellWidth: 50,
       rowHeight: 60,
+      headerHeight: 72, // 年份行+月份行的高度总和
       startYearMonth: '',
       endYearMonth: '',
       currentYearMonth: getCurrentYearMonth(),
@@ -211,7 +216,58 @@ export default {
   created() {
     this.initData();
   },
+  mounted() {
+    this.$nextTick(() => {
+      this.adjustTableHeaderHeight();
+    });
+  },
   methods: {
+    adjustTableHeaderHeight() {
+      // 调整表格头部高度
+      const headerEl = this.$refs.ganttTable.$el.querySelector('.el-table__header-wrapper');
+      if (headerEl) {
+        headerEl.style.height = `${this.headerHeight}px`;
+        
+        // 调整表头行高
+        const headerRow = headerEl.querySelector('tr');
+        if (headerRow) {
+          headerRow.style.height = `${this.headerHeight}px`;
+        }
+        
+        // 调整表头单元格行高
+        const headerCells = headerRow ? headerRow.querySelectorAll('th') : [];
+        headerCells.forEach(cell => {
+          cell.style.height = `${this.headerHeight}px`;
+          const cellInner = cell.querySelector('.cell');
+          if (cellInner) {
+            cellInner.style.height = `${this.headerHeight}px`;
+            cellInner.style.lineHeight = `${this.headerHeight}px`;
+          }
+        });
+      }
+      
+      // 调整表格体行高
+      const bodyEl = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
+      if (bodyEl) {
+        const rows = bodyEl.querySelectorAll('tr');
+        rows.forEach(row => {
+          row.style.height = `${this.rowHeight}px`;
+          
+          const cells = row.querySelectorAll('td');
+          cells.forEach(cell => {
+            cell.style.height = `${this.rowHeight}px`;
+            const cellInner = cell.querySelector('.cell');
+            if (cellInner) {
+              cellInner.style.height = `${this.rowHeight}px`;
+              cellInner.style.lineHeight = 'normal';
+              cellInner.style.display = 'flex';
+              cellInner.style.alignItems = 'center';
+              cellInner.style.justifyContent = 'center';
+            }
+          });
+        });
+      }
+    },
     initData() {
       this.projectsData = mockProjects;
       
@@ -242,6 +298,11 @@ export default {
       
       // 计算当前月份位置
       this.calculateCurrentMonthPosition();
+      
+      // 在渲染完成后调整表格高度
+      this.$nextTick(() => {
+        this.adjustTableHeaderHeight();
+      });
     },
     generateHeaders() {
       const startParts = this.startYearMonth.split('-');
@@ -485,6 +546,24 @@ h2 {
   overflow: hidden;
   border-right: 2px solid #DCDFE6;
   z-index: 2; /* 确保表格在滚动时位于甘特图上层 */
+}
+
+.gantt-table-container /deep/ .gantt-table-header {
+  height: 72px;
+}
+
+.gantt-table-container /deep/ .gantt-table-row {
+  height: 60px;
+}
+
+.gantt-table-container /deep/ .el-table__header th {
+  padding: 0;
+  height: 72px;
+}
+
+.gantt-table-container /deep/ .el-table__body td {
+  padding: 0;
+  height: 60px;
 }
 
 .gantt-chart-container {
