@@ -260,12 +260,15 @@ export default {
         const endM = year === endYear ? endMonth : 12;
         const months = endM - startM + 1;
         
+        // 精确计算年份宽度，考虑边框宽度
+        const yearWidth = months * this.cellWidth;
+        
         yearHeaders.push({
           year,
           months,
           startMonth: startM,
           endMonth: endM,
-          width: months * this.cellWidth // 计算年份单元格的宽度
+          width: yearWidth // 计算年份单元格的宽度
         });
       }
       this.yearHeaders = yearHeaders;
@@ -280,15 +283,24 @@ export default {
       yearHeaders.forEach(yearHeader => {
         // 为每一年创建月份组
         const yearMonths = [];
+        const monthCount = yearHeader.months;
         
-        for (let month = yearHeader.startMonth; month <= yearHeader.endMonth; month++) {
+        for (let i = 0; i < monthCount; i++) {
+          const month = yearHeader.startMonth + i;
+          // 精确计算每个月份宽度
+          const isLastMonthOfYear = month === yearHeader.endMonth && yearHeader.year < endYear;
+          // 如果是年份的最后一个月且不是整个时间段的最后一年，减去1px边框宽度
+          const monthWidth = isLastMonthOfYear ? 
+                          (yearHeader.width / monthCount) - 1 : 
+                          (yearHeader.width / monthCount);
+                          
           yearMonths.push({
             year: yearHeader.year,
             month,
             isCurrent: yearHeader.year === currentYear && month === currentMonth,
             isYearStart: month === 1 && yearHeader.year > startYear,
-            // 每个月份的宽度 = 年份宽度 / 月份数量
-            width: yearHeader.width / yearHeader.months
+            isYearEnd: month === 12 && yearHeader.year < endYear,
+            width: monthWidth
           });
         }
         
@@ -502,6 +514,7 @@ h2 {
   border-bottom: 1px solid #EBEEF5;
   background-color: #f2f6fc;
   width: max-content;
+  overflow: hidden; /* 确保没有溢出 */
 }
 
 .year-cell {
@@ -512,7 +525,7 @@ h2 {
   border-right: 1px solid #EBEEF5;
   position: relative;
   font-size: 14px;
-  box-sizing: border-box;
+  box-sizing: border-box; /* 确保边框计入宽度 */
 }
 
 .year-cell:not(:last-child)::after {
@@ -521,7 +534,7 @@ h2 {
   right: 0;
   top: 0;
   bottom: 0;
-  width: 2px;
+  width: 1px; /* 改为1px，确保不会有多余的宽度 */
   background-color: #DCDFE6;
 }
 
@@ -530,6 +543,7 @@ h2 {
   height: 36px;
   background-color: #f5f7fa;
   width: max-content;
+  overflow: hidden; /* 确保没有溢出 */
 }
 
 .month-cell {
@@ -540,11 +554,17 @@ h2 {
   position: relative;
   padding: 0 8px;
   font-size: 13px;
-  box-sizing: border-box;
+  box-sizing: border-box; /* 确保边框计入宽度 */
 }
 
 .month-cell.year-boundary-left {
-  border-left: 2px solid #DCDFE6;
+  border-left: 1px solid #DCDFE6; /* 改为1px */
+}
+
+/* 修复年末月份的右边框 */
+.month-cell.year-boundary-left {
+  border-left-width: 1px;
+  margin-left: 0;
 }
 
 .month-cell.current-month {
@@ -593,10 +613,11 @@ h2 {
   top: 0;
   width: 1px;
   background-color: #EBEEF5;
+  box-sizing: border-box; /* 确保边框计入宽度 */
 }
 
 .month-grid-line.year-boundary {
-  width: 2px;
+  width: 1px; /* 改为1px保持一致 */
   background-color: #DCDFE6;
 }
 
