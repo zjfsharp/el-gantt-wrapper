@@ -6,7 +6,7 @@
       </el-header>
       <el-main>
         <el-tabs v-model="activeTab" type="card">
-          <el-tab-pane label="v-gantt-chart实现" name="v-gantt">
+          <!-- <el-tab-pane label="v-gantt-chart实现" name="v-gantt">
             <v-gantt-chart-demo />
           </el-tab-pane>
           <el-tab-pane label="frappe-gantt实现" name="frappe">
@@ -17,9 +17,13 @@
           </el-tab-pane>
           <el-tab-pane label="ElementUI自定义实现" name="custom">
             <CustomGanttDemo />
-          </el-tab-pane>
+          </el-tab-pane> -->
           <el-tab-pane label="ElementUI优化实现" name="custom-fixed">
-            <CustomGanttDemoFixed />
+            <CustomGanttDemoFixed
+              :cell-width="50"
+              :row-height="60"
+              :header-height="72"
+            />
           </el-tab-pane>
         </el-tabs>
       </el-main>

@@ -1,7 +1,5 @@
 <template>
   <div class="gantt-demo">
-    <h2>ElementUI 自定义实现</h2>
-    
     <div class="custom-gantt">
       <!-- 左侧固定表格 -->
       <div class="gantt-table-container">
@@ -217,14 +215,28 @@ import { mockProjects, getCurrentYearMonth } from '../mockData';
 
 export default {
   name: 'CustomGanttDemoFixed',
+  props: {
+    cellWidth: {
+      type: Number,
+      default: 50,
+      description: '月份单元格的宽度，影响甘特图的水平比例'
+    },
+    rowHeight: {
+      type: Number,
+      default: 60,
+      description: '行高，决定每个项目条目的高度'
+    },
+    headerHeight: {
+      type: Number,
+      default: 72,
+      description: '头部高度，包含年份行和月份行的高度总和'
+    }
+  },
   data() {
     return {
       projectsData: [],
       yearHeaders: [],
       monthHeaders: [],
-      cellWidth: 50,
-      rowHeight: 60,
-      headerHeight: 72, // 年份行+月份行的高度总和
       startYearMonth: '',
       endYearMonth: '',
       currentYearMonth: getCurrentYearMonth(),
@@ -975,21 +987,31 @@ h2 {
 }
 
 .gantt-table-container /deep/ .gantt-table-header {
-  height: 72px;
+  height: v-bind('headerHeight + "px"');
+  border-bottom: 1px solid #DCDFE6; /* 添加表头下边框 */
 }
 
 .gantt-table-container /deep/ .gantt-table-row {
-  height: 60px;
+  height: v-bind('rowHeight + "px"');
+}
+
+.gantt-table-container /deep/ .el-table__header-wrapper {
+  border-bottom: 1px solid #DCDFE6; /* 添加表头包装器下边框 */
+}
+
+.gantt-table-container /deep/ .el-table__header {
+  border-bottom: 1px solid #DCDFE6; /* 添加表头元素下边框 */
 }
 
 .gantt-table-container /deep/ .el-table__header th {
   padding: 0;
-  height: 72px;
+  height: v-bind('headerHeight + "px"');
+  border-bottom: 1px solid #DCDFE6; /* 添加表头单元格下边框 */
 }
 
 .gantt-table-container /deep/ .el-table__body td {
   padding: 0;
-  height: 60px;
+  height: v-bind('rowHeight + "px"');
 }
 
 .gantt-table-container /deep/ .el-table__body-wrapper::-webkit-scrollbar {
@@ -1043,7 +1065,7 @@ h2 {
 
 .year-row {
   display: flex;
-  height: 36px;
+  height: v-bind('headerHeight / 2 + "px"'); /* 使用headerHeight的一半作为年份行高度 */
   border-bottom: 1px solid #EBEEF5;
   background-color: #f2f6fc;
   width: max-content;
@@ -1073,7 +1095,7 @@ h2 {
 
 .month-row {
   display: flex;
-  height: 36px;
+  height: v-bind('headerHeight / 2 + "px"'); /* 使用headerHeight的一半作为月份行高度 */
   background-color: #f5f7fa;
   width: max-content;
   overflow: hidden; /* 确保没有溢出 */
@@ -1190,7 +1212,7 @@ h2 {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  height: 32px;
+  height: v-bind('rowHeight / 2 + "px"'); /* 使用rowHeight的一半作为项目条高度 */
   border-radius: 4px;
   z-index: 3; /* 确保在网格线之上 */
   cursor: pointer;
@@ -1289,7 +1311,7 @@ h2 {
 
 .current-date-label {
   position: absolute;
-  top: -36px;
+  top: v-bind('-headerHeight/2 - 4 + "px"'); /* 根据headerHeight调整标签位置 */
   left: 50%;
   transform: translateX(-50%);
   background-color: #F56C6C;

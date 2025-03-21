@@ -11,7 +11,7 @@ export const mockProjects = [
     startDate: '2022-06',
     endDate: '2023-05',
     progress: 85,
-    status: '进行中'
+    status: '进行中',
   },
   {
     id: '2',
