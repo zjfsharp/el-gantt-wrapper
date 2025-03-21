@@ -336,7 +336,11 @@ export default {
       // 表格容器的最大宽度
       maxTableWidth: 0,
       // 当前表格容器宽度
-      currentTableWidth: 680
+      currentTableWidth: 680,
+      // 添加滚动条高度变量
+      scrollbarHeight: 0,
+      // 添加最大滚动值
+      maxScrollTop: 0
     };
   },
   computed: {
@@ -392,6 +396,9 @@ export default {
         // 初始化时标准化网格线宽度/高度
         this.initializeGridLines();
         
+        // 计算滚动条高度和最大滚动值
+        this.calculateScrollbarHeightAndMaxScroll();
+        
         // 初始化滚动同步 - 在所有尺寸调整之后
         this.initScrollSync();
         
@@ -409,6 +416,9 @@ export default {
 
         // 调试：检查表格列对齐属性
         this.checkTableColumnsAlignment();
+        
+        // 在所有初始化完成后，确保滚动位置正确
+        this.adjustScrollPositionAfterDataChange();
       }, 100); // 100ms延迟确保DOM完全渲染
     });
   },
@@ -578,7 +588,14 @@ export default {
       
       // 获取甘特图滚动容器的滚动位置
       const ganttContainer = this.$refs.ganttChartContainer;
-      const scrollTop = ganttContainer.scrollTop;
+      let scrollTop = ganttContainer.scrollTop;
+      
+      // 应用最大滚动限制，确保不会超过有效滚动范围
+      if (this.maxScrollTop > 0 && scrollTop > this.maxScrollTop) {
+        scrollTop = this.maxScrollTop;
+        // 如果超出了最大滚动值，直接设置为最大滚动值
+        ganttContainer.scrollTop = this.maxScrollTop;
+      }
       
       // 获取表格体的滚动容器
       const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
@@ -1004,6 +1021,9 @@ export default {
         // 更新网格线尺寸
         this.updateGridLines();
         
+        // 重新计算滚动条高度和最大滚动值
+        this.calculateScrollbarHeightAndMaxScroll();
+        
         // 最终调整确保对齐
         this.finalAdjustment();
       });
@@ -1080,8 +1100,8 @@ export default {
     // 初始化双向滚动同步
     initScrollSync() {
       this.$nextTick(() => {
-        // 移除表格滚动事件监听，只保留甘特图滚动事件
-        // 不再需要syncTableScroll方法，现在只需要甘特图滚动时同步到表格
+        // 计算滚动条高度和最大滚动值
+        this.calculateScrollbarHeightAndMaxScroll();
         
         // 确保甘特图滚动事件被监听
         const ganttContainer = this.$refs.ganttChartContainer;
@@ -1092,6 +1112,52 @@ export default {
           ganttContainer.addEventListener('scroll', this.handleGanttScroll, { passive: true });
         }
       });
+    },
+    
+    // 计算滚动条高度和最大滚动值
+    calculateScrollbarHeightAndMaxScroll() {
+      const ganttContainer = this.$refs.ganttChartContainer;
+      if (!ganttContainer) return;
+      
+      // 甘特图头部高度
+      const headerHeight = this.headerHeight;
+      
+      // 计算实际内容高度（不包括表头）
+      const contentHeight = this.getTotalHeight();
+      
+      // 甘特图容器的可视高度（包括表头）
+      const containerHeight = ganttContainer.clientHeight;
+      
+      // 计算可视内容区域的高度（不包括表头）
+      const viewportContentHeight = containerHeight - headerHeight;
+      
+      // 只有当内容高度大于可视内容区域高度时才会出现滚动条
+      if (contentHeight > viewportContentHeight) {
+        // 计算实际滚动条高度（通常为水平滚动条的高度）
+        const scrollbarHeight = ganttContainer.offsetHeight - ganttContainer.clientHeight;
+        this.scrollbarHeight = scrollbarHeight;
+        
+        // 获取表格体的滚动容器
+        const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
+        
+        // 表格的最大滚动高度
+        const tableMaxScroll = tableBodyWrapper ? 
+          tableBodyWrapper.scrollHeight - tableBodyWrapper.clientHeight : 0;
+        
+        // 甘特图的最大滚动高度 - 考虑内容需要完全显示的情况
+        // 需要额外添加一个rowHeight，确保最后一行能完全显示
+        const ganttMaxScroll = contentHeight - viewportContentHeight + scrollbarHeight + this.rowHeight / 2;
+        
+        // 使用较小的值作为最大滚动值，确保两边同步
+        this.maxScrollTop = Math.min(tableMaxScroll, ganttMaxScroll);
+        
+        console.log(`表头高度: ${headerHeight}px, 内容高度: ${contentHeight}px, 容器高度: ${containerHeight}px, ` +
+                   `可视内容区域: ${viewportContentHeight}px, 滚动条高度: ${scrollbarHeight}px, ` +
+                   `最大滚动值: ${this.maxScrollTop}px`);
+      } else {
+        this.scrollbarHeight = 0;
+        this.maxScrollTop = 0;
+      }
     },
     // 获取总高度（实际项目高度）
     getTotalHeight() {
@@ -1233,14 +1299,25 @@ export default {
         // 更新网格线
         this.updateGridLines();
         
+        // 重新计算滚动条高度和最大滚动值
+        this.calculateScrollbarHeightAndMaxScroll();
+        
         // 再次同步表格和甘特图滚动位置
         const ganttContainer = this.$refs.ganttChartContainer;
         const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
         
         if (ganttContainer && tableBodyWrapper) {
-          // 确保两者滚动位置一致
-          const scrollTop = ganttContainer.scrollTop;
+          // 确保两者滚动位置一致，但不超过最大值
+          const scrollTop = Math.min(ganttContainer.scrollTop, this.maxScrollTop);
+          
+          // 先设置表格的滚动位置
           tableBodyWrapper.scrollTop = scrollTop;
+          
+          // 设置甘特图的滚动位置
+          ganttContainer.scrollTop = scrollTop;
+          
+          // 记录日志，帮助调试
+          console.log(`最终同步滚动位置: ${scrollTop}px, 最大允许: ${this.maxScrollTop}px`);
         }
       }, 50);
     },
@@ -1308,6 +1385,36 @@ export default {
         }
       });
     },
+    // 添加新方法：数据变化后调整滚动位置
+    adjustScrollPositionAfterDataChange() {
+      // 延迟执行以确保DOM已更新
+      this.$nextTick(() => {
+        // 先重新计算最大滚动值，确保边界是最新的
+        this.calculateScrollbarHeightAndMaxScroll();
+        
+        const ganttContainer = this.$refs.ganttChartContainer;
+        const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
+        
+        if (ganttContainer && tableBodyWrapper) {
+          // 获取当前滚动位置
+          let currentScrollTop = ganttContainer.scrollTop;
+          
+          // 确保不超过最大滚动值
+          if (this.maxScrollTop > 0 && currentScrollTop > this.maxScrollTop) {
+            currentScrollTop = this.maxScrollTop;
+            
+            // 更新甘特图滚动位置
+            ganttContainer.scrollTop = currentScrollTop;
+            
+            // 记录调整信息
+            console.log(`调整后的滚动位置: ${currentScrollTop}px（已限制在最大值内）`);
+          }
+          
+          // 同步表格滚动位置
+          tableBodyWrapper.scrollTop = currentScrollTop;
+        }
+      });
+    },
   },
   watch: {
     // 监听项目数据变化，更新网格线
@@ -1315,6 +1422,20 @@ export default {
       handler() {
         this.$nextTick(() => {
           this.updateGridLines();
+          // 重新计算滚动条高度和最大滚动值
+          this.calculateScrollbarHeightAndMaxScroll();
+        });
+      },
+      deep: true
+    },
+    // 监听过滤后的项目数据变化
+    filteredProjects: {
+      handler() {
+        this.$nextTick(() => {
+          // 重新计算滚动条高度和最大滚动值
+          this.calculateScrollbarHeightAndMaxScroll();
+          // 可能需要调整滚动位置
+          this.adjustScrollPositionAfterDataChange();
         });
       },
       deep: true
@@ -1482,6 +1603,7 @@ h2 {
 .gantt-table-container /deep/ .gantt-table-row {
   height: v-bind('rowHeight + "px"');
   box-sizing: border-box; /* 确保边框计入高度计算 */
+  border-bottom: 1px solid #EBEEF5; /* 确保边框样式一致 */
 }
 
 .gantt-table-container /deep/ .el-table__header-wrapper {
@@ -1520,6 +1642,13 @@ h2 {
   scrollbar-width: thin;
   scrollbar-color: #DCDFE6 #F5F7FA;
   border-left: none; /* 移除左侧边框，防止重叠 */
+  box-sizing: border-box; /* 确保尺寸计算准确 */
+  will-change: scroll-position; /* 优化滚动性能 */
+  -webkit-overflow-scrolling: touch; /* 在iOS上平滑滚动 */
+  /* 确保滚动更平滑 */
+  scroll-behavior: auto;
+  /* 防止出现抖动 */
+  overscroll-behavior: none;
 }
 
 .gantt-chart-container::-webkit-scrollbar {
@@ -1623,6 +1752,9 @@ h2 {
   min-height: 300px;
   width: fit-content; /* 使用适应内容的宽度，而不是强制设置最小宽度 */
   border-top: none; /* 移除顶部边框，防止重叠 */
+  /* 确保内容底部有足够空间显示完整行 */
+  padding-bottom: v-bind('rowHeight + "px"');
+  box-sizing: border-box;
 }
 
 .horizontal-grid-lines {
@@ -1697,6 +1829,8 @@ h2 {
   border-bottom: 1px solid #EBEEF5;
   transition: background-color 0.2s;
   box-sizing: border-box; /* 确保边框计入高度计算 */
+  transform: translateZ(0); /* 提高渲染性能 */
+  backface-visibility: hidden; /* 防止在某些浏览器中出现渲染问题 */
 }
 
 .gantt-row:hover {
@@ -1874,6 +2008,7 @@ h2 {
   background-color: #FAFAFA;
   scrollbar-width: thin;
   scrollbar-color: #DCDFE6 #F5F7FA;
+  scroll-behavior: auto; /* 使用浏览器默认滚动行为，更好控制 */
 }
 
 /* 增强网格线的视觉效果 */
