@@ -406,6 +406,9 @@ export default {
         
         // 再次进行最终调整以确保完全对齐
         this.finalAdjustment();
+
+        // 调试：检查表格列对齐属性
+        this.checkTableColumnsAlignment();
       }, 100); // 100ms延迟确保DOM完全渲染
     });
   },
@@ -487,8 +490,16 @@ export default {
     // 处理列选择变化
     handleColumnChange(value) {
       console.log('选择的列变更为:', value);
-      // 实时重新计算表格宽度
+      
+      // 打印当前显示列的align属性
       this.$nextTick(() => {
+        const displayedColumns = this.displayedExtraColumns;
+        console.log('当前显示的列及其对齐方式:');
+        displayedColumns.forEach(col => {
+          console.log(`列名: ${col.columnName}, 对齐方式: ${col.align || 'center'}`);
+        });
+        
+        // 实时重新计算表格宽度
         this.getDynamicTableWidth();
         // 调整表格和甘特图的尺寸
         this.adjustTableHeaderHeight();
@@ -515,7 +526,9 @@ export default {
                 columnName: field.columnName,
                 defaultWidth: 120,
                 order: allFields.size + 1, // 使用当前大小作为顺序
-                show: field.show
+                show: field.show,
+                // 添加align属性，如果存在则使用，否则默认为center
+                align: field.align || 'center'
               });
             }
           });
@@ -538,7 +551,8 @@ export default {
     getExtraFieldValue(project, propName) {
       if (!project.extraFields) return '';
       
-      const field = project.extraFields.find(f => f.propName === propName && f.show === 1);
+      // 修改为查找propName匹配的字段，不再限制show为1
+      const field = project.extraFields.find(f => f.propName === propName);
       return field ? field.value : '';
     },
     hideTableScrollbars() {
@@ -599,13 +613,7 @@ export default {
         headerCells.forEach(cell => {
           cell.style.height = `${this.headerHeight}px`;
           cell.style.boxSizing = 'border-box'; // 确保边框计入高度计算
-          const cellInner = cell.querySelector('.cell');
-          if (cellInner) {
-            cellInner.style.height = `${this.headerHeight}px`;
-            // 移除行高设置，防止影响对齐
-            // cellInner.style.lineHeight = `${this.headerHeight}px`;
-            cellInner.style.boxSizing = 'border-box'; // 确保边框计入高度计算
-          }
+          // 不再设置cellInner样式，避免影响对齐属性
         });
       }
       
@@ -621,17 +629,7 @@ export default {
           cells.forEach(cell => {
             cell.style.height = `${this.rowHeight}px`;
             cell.style.boxSizing = 'border-box'; // 确保边框计入高度计算
-            const cellInner = cell.querySelector('.cell');
-            if (cellInner) {
-              cellInner.style.height = `${this.rowHeight}px`;
-              cellInner.style.boxSizing = 'border-box'; // 确保边框计入高度计算
-              // 移除可能影响对齐的样式
-              // cellInner.style.lineHeight = 'normal';
-              // cellInner.style.display = 'flex';
-              // cellInner.style.alignItems = 'center';
-              // 移除强制居中对齐的样式，保留el-table-column的align属性功能
-              // cellInner.style.justifyContent = 'center';
-            }
+            // 不再设置cellInner样式，避免影响对齐属性
           });
         });
       }
@@ -1286,6 +1284,29 @@ export default {
       console.log(`表格宽度计算: 固定列宽度=${fixedColumnsWidth}px, 动态列宽度=${dynamicColumnsWidth}px, 总容器宽度=${ganttContainerWidth}px, 最大允许宽度=${maxAllowedWidth}px, 实际宽度=${this.currentTableWidth}px`);
       
       return this.currentTableWidth;
+    },
+    // 添加一个检查表格列对齐属性的调试方法
+    checkTableColumnsAlignment() {
+      // 打印动态列的align属性
+      console.log('动态列及其对齐方式:');
+      this.displayedExtraColumns.forEach(col => {
+        console.log(`列名: ${col.columnName}, 对齐方式: ${col.align || 'center'}`);
+      });
+
+      // 检查DOM中的实际样式
+      this.$nextTick(() => {
+        const table = this.$refs.ganttTable;
+        if (table) {
+          const cells = table.$el.querySelectorAll('.el-table__body td .cell');
+          console.log(`找到 ${cells.length} 个表格单元格`);
+          
+          // 记录每个单元格的实际对齐方式
+          cells.forEach((cell, index) => {
+            const computedStyle = window.getComputedStyle(cell);
+            console.log(`单元格 ${index} 的对齐方式: justify-content=${computedStyle.justifyContent}`);
+          });
+        }
+      });
     },
   },
   watch: {
@@ -1959,6 +1980,7 @@ h2 {
 .gantt-table-container /deep/ .el-table__header th .cell {
   display: flex !important;
   align-items: center !important;
+  height: 100% !important;
 }
 
 /* 处理不同的align值 */
