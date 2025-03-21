@@ -43,14 +43,14 @@
             prop="projName"
             label="项目名称"
             align="left"
-            width="150">
+            :width="projectNameColumnWidth">
           </el-table-column>
           
           <!-- 状态列（固定） -->
           <el-table-column
             prop="status"
             label="状态"
-            width="80">
+            :width="statusColumnWidth">
             <template slot-scope="scope">
               <el-tag :type="getStatusType(scope.row.status)">{{ scope.row.status }}</el-tag>
             </template>
@@ -71,11 +71,14 @@
           <!-- 操作列（固定） -->
           <el-table-column
             label="操作"
-            width="120">
+            :width="operationColumnWidth">
             <template slot-scope="scope">
-              <el-button
-                size="mini"
-                @click="handleDetail(scope.row)">详情</el-button>
+              <!-- 默认显示详情按钮，点击时触发事件给父组件处理 -->
+              <slot name="operation" :row="scope.row">
+                <el-button
+                  size="mini"
+                  @click="handleRowAction(scope.row)">详情</el-button>
+              </slot>
             </template>
           </el-table-column>
         </el-table>
@@ -203,7 +206,7 @@
                 width: `${getBarWidth(project)}px`,
                 backgroundColor: getBarBackgroundColor(project.progress)
               }"
-              @click="handleDetail(project)">
+              @click="handleRowAction(project)">
               <div 
                 class="progress-indicator" 
                 :style="{ 
@@ -217,36 +220,6 @@
         </div>
       </div>
     </div>
-    
-    <!-- 项目详情对话框 -->
-    <el-dialog
-      title="项目详情"
-      :visible.sync="dialogVisible"
-      width="30%">
-      <div v-if="currentProject">
-        <p><strong>项目名称：</strong>{{ currentProject.projName }}</p>
-        <p><strong>负责人：</strong>{{ currentProject.manager }}</p>
-        <p><strong>优先级：</strong>{{ currentProject.priority }}</p>
-        <p><strong>开始时间：</strong>{{ currentProject.startDate }}</p>
-        <p><strong>结束时间：</strong>{{ currentProject.endDate }}</p>
-        <p><strong>进度：</strong>{{ currentProject.progress }}%</p>
-        <p><strong>状态：</strong>{{ currentProject.status }}</p>
-        
-        <!-- 显示动态字段信息 -->
-        <template v-if="currentProject.extraFields && currentProject.extraFields.length > 0">
-          <div class="extra-fields-section">
-            <h4>附加信息</h4>
-            <p v-for="field in currentProject.extraFields.filter(f => f.show === 1)" 
-               :key="field.propName">
-              <strong>{{ field.columnName }}：</strong>{{ field.value }}
-            </p>
-          </div>
-        </template>
-      </div>
-      <span slot="footer" class="dialog-footer">
-        <el-button @click="dialogVisible = false">关 闭</el-button>
-      </span>
-    </el-dialog>
   </div>
 </template>
 
@@ -307,6 +280,24 @@ export default {
       type: Number,
       default: 10,
       description: '甘特图最大显示的行数，超过该数值的项目需要通过滚动查看'
+    },
+    // 项目名称列宽度
+    projectNameColumnWidth: {
+      type: Number,
+      default: 150,
+      description: '项目名称列的宽度'
+    },
+    // 状态列宽度
+    statusColumnWidth: {
+      type: Number,
+      default: 80,
+      description: '状态列的宽度'
+    },
+    // 操作列宽度
+    operationColumnWidth: {
+      type: Number,
+      default: 120,
+      description: '操作列的宽度'
     }
   },
   data() {
@@ -318,8 +309,7 @@ export default {
       endYearMonth: '',
       currentYearMonth: this.currentMonth || this.getCurrentYearMonth(),
       currentMonthPosition: 0,
-      dialogVisible: false,
-      currentProject: null,
+      // 移除对话框相关状态
       isScrolling: false, // 防止滚动事件循环触发
       resizeTimeout: null, // 用于防抖处理窗口大小变化
       scrollAdjustTimeout: null, // 用于滚动事件处理的防抖
@@ -966,9 +956,10 @@ export default {
         default: return '';
       }
     },
-    handleDetail(row) {
-      this.currentProject = row;
-      this.dialogVisible = true;
+    // 修改行操作处理方法
+    handleRowAction(row) {
+      // 直接触发事件，让父组件处理
+      this.$emit('row-action', row);
     },
     // 获取当前日期的格式化文本
     getCurrentDateText() {
@@ -1269,7 +1260,7 @@ export default {
     // 新添加的方法：计算表格的动态宽度
     getDynamicTableWidth() {
       // 计算基础宽度：固定列宽度总和
-      const fixedColumnsWidth = 350; // 项目名称(150) + 状态(80) + 操作(120)
+      const fixedColumnsWidth = this.projectNameColumnWidth + this.statusColumnWidth + this.operationColumnWidth;
       
       // 计算动态列的总宽度
       let dynamicColumnsWidth = 0;

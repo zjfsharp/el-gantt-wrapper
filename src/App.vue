@@ -22,7 +22,7 @@
           :projects="mockProjects" 
           :show-column-control="false" 
           :max-visible-rows="5"
-          @project-click="handleProjectClick" 
+          @row-action="handleProjectClick" 
         />
       </el-tab-pane>
       <el-tab-pane label="可控制动态列" name="dynamic">
@@ -31,15 +31,25 @@
           :show-column-control="true" 
           :show-filter="true"
           :max-visible-rows="8"
-          @project-click="handleProjectClick"
-        />
+          :project-name-column-width="200"
+          :status-column-width="80"
+          :operation-column-width="100"
+          @row-action="handleProjectClick">
+          <template #operation="{ row }">
+            <div class="operation-buttons">
+              <el-button size="mini" type="primary" icon="el-icon-view" @click="handleViewProject(row)">查看</el-button>
+              <!-- <el-button size="mini" type="success" icon="el-icon-edit" @click="handleEditProject(row)">编辑</el-button>
+              <el-button size="mini" type="danger" icon="el-icon-delete" @click="handleDeleteProject(row)">删除</el-button> -->
+            </div>
+          </template>
+        </CustomGanttDemoFixed>
       </el-tab-pane>
       <el-tab-pane label="高度调整示例" name="height">
         <CustomGanttDemoFixed 
           :projects="mockProjects" 
           :show-column-control="true"
           :max-visible-rows="maxRows"
-          @project-click="handleProjectClick"
+          @row-action="handleProjectClick"
         />
       </el-tab-pane>
     </el-tabs>
@@ -67,8 +77,8 @@ export default {
     };
   },
   methods: {
-    handleProjectClick(project) {
-      console.log('项目被点击:', project);
+    handleRowAction(project) {
+      console.log('项目动作:', project);
     }
   }
 }
@@ -108,9 +118,28 @@ export default {
 
         <h3>事件</h3>
         <ul>
-          <li><strong>project-click</strong>: 当项目被点击时触发</li>
+          <li><strong>row-action</strong>: 当项目行动作被触发时触发(例如点击操作按钮)</li>
           <li><strong>project-filter-change</strong>: 当项目过滤条件变化时触发</li>
         </ul>
+
+        <h3>插槽</h3>
+        <ul>
+          <li><strong>operation</strong>: 自定义操作列的内容，接收 { row } 作为参数</li>
+        </ul>
+        
+        <h4>操作列插槽示例：</h4>
+        <pre><code>
+&lt;CustomGanttDemoFixed 
+  :projects="projects"
+  @row-action="handleRowAction"&gt;
+  &lt;template #operation="{ row }"&gt;
+    &lt;div class="operation-buttons"&gt;
+      &lt;el-button size="mini" @click="handleView(row)"&gt;查看&lt;/el-button&gt;
+      &lt;el-button size="mini" @click="handleEdit(row)"&gt;编辑&lt;/el-button&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/CustomGanttDemoFixed&gt;
+        </code></pre>
       </div>
       <span slot="footer" class="dialog-footer">
         <el-button type="primary" @click="showGuide = false">我知道了</el-button>
@@ -231,6 +260,33 @@ export default {
       this.selectedProject = project;
       this.showProjectDetails = true;
     },
+    handleViewProject(project) {
+      this.selectedProject = project;
+      this.showProjectDetails = true;
+    },
+    handleEditProject(project) {
+      this.$message({
+        message: `准备编辑项目：${project.projName}`,
+        type: 'success'
+      });
+    },
+    handleDeleteProject(project) {
+      this.$confirm(`确定要删除项目 ${project.projName} 吗?`, '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.$message({
+          type: 'success',
+          message: `项目 ${project.projName} 已删除!`
+        });
+      }).catch(() => {
+        this.$message({
+          type: 'info',
+          message: '已取消删除'
+        });     
+      });
+    },
     getStatusType(status) {
       const statusMap = {
         '已完成': 'success',
@@ -346,6 +402,23 @@ h4 {
   padding-bottom: 5px;
   border-bottom: 1px solid #ebeef5;
   color: #303133;
+}
+
+.operation-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+/* 在小屏幕上使按钮更小，只显示图标 */
+@media (max-width: 1200px) {
+  .operation-buttons .el-button {
+    padding: 6px;
+  }
+  
+  .operation-buttons .el-button span {
+    display: none;
+  }
 }
 
 .height-control-panel {
