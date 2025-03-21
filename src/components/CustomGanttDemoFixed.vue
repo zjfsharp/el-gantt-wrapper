@@ -91,20 +91,21 @@
         <div class="gantt-body" ref="ganttBody">
           <!-- 水平网格线 -->
           <div class="horizontal-grid-lines">
+            <!-- 第一条线在顶部 -->
+            <div 
+              class="horizontal-grid-line"
+              :style="{ 
+                top: `0px`,
+                width: `${getTotalWidth()}px` 
+              }">
+            </div>
+            <!-- 每行下面的线 -->
             <div 
               v-for="(project, index) in projectsData" 
               :key="`hgrid-${index}`"
               class="horizontal-grid-line"
               :style="{ 
-                top: `${index * rowHeight}px`,
-                width: `${getTotalWidth()}px` 
-              }">
-            </div>
-            <!-- 最后一行的底部线 -->
-            <div 
-              class="horizontal-grid-line"
-              :style="{ 
-                top: `${projectsData.length * rowHeight}px`,
+                top: `${(index + 1) * rowHeight}px`,
                 width: `${getTotalWidth()}px` 
               }">
             </div>
@@ -165,7 +166,11 @@
             v-for="(project, index) in projectsData" 
             :key="project.id"
             class="gantt-row"
-            :style="{ height: `${rowHeight}px`, top: `${index * rowHeight}px` }">
+            :style="{ 
+              height: `${rowHeight}px`, 
+              top: `${index * rowHeight}px`,
+              boxSizing: 'border-box' 
+            }">
             <!-- 项目进度条 -->
             <div 
               class="gantt-bar" 
@@ -253,30 +258,37 @@ export default {
   },
   created() {
     this.initData();
+    // 添加窗口大小变化监听器
+    window.addEventListener('resize', this.handleWindowResize);
   },
   mounted() {
     this.$nextTick(() => {
-      this.adjustTableHeaderHeight();
-      // 初始化时隐藏表格滚动条
-      this.hideTableScrollbars();
-      
-      // 初始化时标准化网格线宽度/高度
-      this.initializeGridLines();
-      
-      // 初始化滚动同步
-      this.initScrollSync();
-      
-      // 恢复滚动到当前月份，但不使用动画
-      this.scrollToCurrentMonth();
-      
-      // 添加窗口大小变化监听器
-      window.addEventListener('resize', this.handleWindowResize);
-      
-      // 添加滚动监听，修改为只用于检查边缘位置
-      const ganttContainer = this.$refs.ganttChartContainer;
-      if (ganttContainer) {
-        ganttContainer.addEventListener('scroll', this.onGanttScroll, { passive: true });
-      }
+      // 确保所有DOM元素完全渲染后再进行初始化操作
+      setTimeout(() => {
+        // 先调整表格高度和行高，确保表格和甘特图初始大小一致
+        this.adjustTableHeaderHeight();
+        
+        // 隐藏表格滚动条
+        this.hideTableScrollbars();
+        
+        // 初始化时标准化网格线宽度/高度
+        this.initializeGridLines();
+        
+        // 初始化滚动同步 - 在所有尺寸调整之后
+        this.initScrollSync();
+        
+        // 恢复滚动到当前月份，但不使用动画
+        this.scrollToCurrentMonth();
+        
+        // 添加滚动监听，修改为只用于检查边缘位置
+        const ganttContainer = this.$refs.ganttChartContainer;
+        if (ganttContainer) {
+          ganttContainer.addEventListener('scroll', this.onGanttScroll, { passive: true });
+        }
+        
+        // 再次进行最终调整以确保完全对齐
+        this.finalAdjustment();
+      }, 100); // 100ms延迟确保DOM完全渲染
     });
   },
   beforeDestroy() {
@@ -303,6 +315,7 @@ export default {
     },
     
     handleGanttScroll(e) {
+      // 使用节流而不是防抖，确保滚动时的平滑性
       if (this.isScrolling) return;
       
       this.isScrolling = true;
@@ -314,35 +327,41 @@ export default {
       // 获取表格体的滚动容器
       const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
       if (tableBodyWrapper) {
-        // 同步垂直滚动位置
+        // 直接设置滚动位置，不使用动画，确保精确对齐
         tableBodyWrapper.scrollTop = scrollTop;
       }
       
+      // 允许下一次滚动事件在2ms后生效
       setTimeout(() => {
         this.isScrolling = false;
-      }, 10);
+      }, 2);
     },
     
     adjustTableHeaderHeight() {
       // 调整表格头部高度
       const headerEl = this.$refs.ganttTable.$el.querySelector('.el-table__header-wrapper');
       if (headerEl) {
+        // 设置精确的头部高度，确保与甘特图头部完全匹配
         headerEl.style.height = `${this.headerHeight}px`;
+        headerEl.style.boxSizing = 'border-box'; // 确保边框计入高度计算
         
         // 调整表头行高
         const headerRow = headerEl.querySelector('tr');
         if (headerRow) {
           headerRow.style.height = `${this.headerHeight}px`;
+          headerRow.style.boxSizing = 'border-box'; // 确保边框计入高度计算
         }
         
         // 调整表头单元格行高
         const headerCells = headerRow ? headerRow.querySelectorAll('th') : [];
         headerCells.forEach(cell => {
           cell.style.height = `${this.headerHeight}px`;
+          cell.style.boxSizing = 'border-box'; // 确保边框计入高度计算
           const cellInner = cell.querySelector('.cell');
           if (cellInner) {
             cellInner.style.height = `${this.headerHeight}px`;
             cellInner.style.lineHeight = `${this.headerHeight}px`;
+            cellInner.style.boxSizing = 'border-box'; // 确保边框计入高度计算
           }
         });
       }
@@ -353,13 +372,16 @@ export default {
         const rows = bodyEl.querySelectorAll('tr');
         rows.forEach(row => {
           row.style.height = `${this.rowHeight}px`;
+          row.style.boxSizing = 'border-box'; // 确保边框计入高度计算
           
           const cells = row.querySelectorAll('td');
           cells.forEach(cell => {
             cell.style.height = `${this.rowHeight}px`;
+            cell.style.boxSizing = 'border-box'; // 确保边框计入高度计算
             const cellInner = cell.querySelector('.cell');
             if (cellInner) {
               cellInner.style.height = `${this.rowHeight}px`;
+              cellInner.style.boxSizing = 'border-box'; // 确保边框计入高度计算
               cellInner.style.lineHeight = 'normal';
               cellInner.style.display = 'flex';
               cellInner.style.alignItems = 'center';
@@ -721,6 +743,9 @@ export default {
         
         // 更新网格线尺寸
         this.updateGridLines();
+        
+        // 最终调整确保对齐
+        this.finalAdjustment();
       });
     },
     
@@ -792,7 +817,7 @@ export default {
         }
       }
     },
-    // 处理表格垂直滚动事件，同步甘特图垂直滚动位置
+    // 高性能表格滚动同步
     syncTableScroll() {
       // 获取表格体的滚动容器
       const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
@@ -800,6 +825,7 @@ export default {
       
       // 给表格体添加滚动事件监听器
       tableBodyWrapper.addEventListener('scroll', (e) => {
+        // 使用节流而不是防抖，确保滚动时的平滑性
         if (this.isScrolling) return;
         
         this.isScrolling = true;
@@ -810,12 +836,14 @@ export default {
         // 同步甘特图的垂直滚动位置
         const ganttContainer = this.$refs.ganttChartContainer;
         if (ganttContainer) {
+          // 直接设置滚动位置，不使用动画，确保精确对齐
           ganttContainer.scrollTop = scrollTop;
         }
         
+        // 允许下一次滚动事件在2ms后生效
         setTimeout(() => {
           this.isScrolling = false;
-        }, 10);
+        }, 2);
       }, { passive: true });
     },
     // 初始化双向滚动同步
@@ -889,6 +917,14 @@ export default {
           currentMonthHighlight.style.height = `${totalHeight}px`;
         }
         
+        // 确保行对齐 - 检查和更新每一行元素的位置和高度
+        const ganttRows = ganttContainer.querySelectorAll('.gantt-row');
+        ganttRows.forEach((row, index) => {
+          row.style.top = `${index * this.rowHeight}px`;
+          row.style.height = `${this.rowHeight}px`;
+          row.style.boxSizing = 'border-box';
+        });
+        
         this.isUpdatingLines = false;
       });
     },
@@ -938,6 +974,27 @@ export default {
       this.isCurrentMonthVisible = this.isDateInRange(currentYear, currentMonth);
       console.log(`当前月份${this.currentYearMonth}是否在显示范围内: ${this.isCurrentMonthVisible}`);
     },
+    // 添加一个最终调整方法，确保甘特图和表格完全对齐
+    finalAdjustment() {
+      // 延迟执行，确保之前的样式已经应用
+      setTimeout(() => {
+        // 重新调整表格高度
+        this.adjustTableHeaderHeight();
+        
+        // 更新网格线
+        this.updateGridLines();
+        
+        // 再次同步表格和甘特图滚动位置
+        const ganttContainer = this.$refs.ganttChartContainer;
+        const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
+        
+        if (ganttContainer && tableBodyWrapper) {
+          // 确保两者滚动位置一致
+          const scrollTop = ganttContainer.scrollTop;
+          tableBodyWrapper.scrollTop = scrollTop;
+        }
+      }, 50);
+    },
   },
   watch: {
     // 监听项目数据变化，更新网格线
@@ -984,34 +1041,44 @@ h2 {
   overflow: hidden; /* 确保外部容器不显示滚动条 */
   border-right: 2px solid #DCDFE6;
   z-index: 2; /* 确保表格在滚动时位于甘特图上层 */
+  position: relative; /* 添加相对定位 */
 }
 
 .gantt-table-container /deep/ .gantt-table-header {
   height: v-bind('headerHeight + "px"');
   border-bottom: 1px solid #DCDFE6; /* 添加表头下边框 */
+  box-sizing: border-box; /* 确保边框计入高度计算 */
 }
 
 .gantt-table-container /deep/ .gantt-table-row {
   height: v-bind('rowHeight + "px"');
+  box-sizing: border-box; /* 确保边框计入高度计算 */
 }
 
 .gantt-table-container /deep/ .el-table__header-wrapper {
   border-bottom: 1px solid #DCDFE6; /* 添加表头包装器下边框 */
+  box-sizing: border-box; /* 确保边框计入高度计算 */
+  overflow: hidden; /* 防止出现滚动条 */
 }
 
 .gantt-table-container /deep/ .el-table__header {
   border-bottom: 1px solid #DCDFE6; /* 添加表头元素下边框 */
+  box-sizing: border-box; /* 确保边框计入高度计算 */
+  margin-bottom: -1px; /* 抵消边框高度 */
 }
 
 .gantt-table-container /deep/ .el-table__header th {
   padding: 0;
   height: v-bind('headerHeight + "px"');
   border-bottom: 1px solid #DCDFE6; /* 添加表头单元格下边框 */
+  box-sizing: border-box; /* 确保边框计入高度计算 */
 }
 
 .gantt-table-container /deep/ .el-table__body td {
   padding: 0;
   height: v-bind('rowHeight + "px"');
+  box-sizing: border-box; /* 确保边框计入高度计算 */
+  border-bottom: 1px solid #EBEEF5; /* 确保边框样式一致 */
 }
 
 .gantt-table-container /deep/ .el-table__body-wrapper::-webkit-scrollbar {
@@ -1020,10 +1087,23 @@ h2 {
 }
 
 .gantt-table-container /deep/ .el-table__body-wrapper {
+  position: relative; /* 添加相对定位 */
+  overflow: hidden !important; /* 确保无滚动条 */
   scrollbar-width: none; /* 隐藏Firefox浏览器滚动条 */
   -ms-overflow-style: none; /* 隐藏IE浏览器滚动条 */
   overflow-y: hidden !important;
   overflow-x: hidden !important;
+}
+
+.gantt-table-container /deep/ .el-table__body {
+  position: relative; /* 添加相对定位 */
+}
+
+.gantt-table-container /deep/ .el-table__body tr {
+  position: relative; /* 添加相对定位 */
+  border-bottom: 1px solid #EBEEF5; /* 确保边框一致 */
+  height: v-bind('rowHeight + "px"'); /* 显式设置高度 */
+  box-sizing: border-box; /* 确保边框计入高度 */
 }
 
 .gantt-chart-container {
@@ -1035,6 +1115,7 @@ h2 {
   background-color: #FAFAFA;
   scrollbar-width: thin;
   scrollbar-color: #DCDFE6 #F5F7FA;
+  border-left: none; /* 移除左侧边框，防止重叠 */
 }
 
 .gantt-chart-container::-webkit-scrollbar {
@@ -1061,6 +1142,8 @@ h2 {
   display: flex;
   flex-direction: column; /* 年份行在上，月份行在下 */
   user-select: none; /* 防止用户选中文本 */
+  box-sizing: border-box; /* 确保边框计入高度计算 */
+  height: v-bind('headerHeight + "px"'); /* 明确设置高度 */
 }
 
 .year-row {
@@ -1070,6 +1153,7 @@ h2 {
   background-color: #f2f6fc;
   width: max-content;
   overflow: hidden; /* 确保没有溢出 */
+  box-sizing: border-box; /* 确保边框计入高度计算 */
 }
 
 .year-cell {
@@ -1099,6 +1183,7 @@ h2 {
   background-color: #f5f7fa;
   width: max-content;
   overflow: hidden; /* 确保没有溢出 */
+  box-sizing: border-box; /* 确保边框计入高度计算 */
 }
 
 .month-cell {
@@ -1133,6 +1218,7 @@ h2 {
   overflow: visible;
   min-height: 300px;
   width: fit-content; /* 使用适应内容的宽度，而不是强制设置最小宽度 */
+  border-top: none; /* 移除顶部边框，防止重叠 */
 }
 
 .horizontal-grid-lines {
@@ -1156,6 +1242,9 @@ h2 {
   box-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
   will-change: width; /* 优化渲染性能 */
   transition: width 0.1s ease-out; /* 平滑宽度变化 */
+  pointer-events: none; /* 防止干扰鼠标事件 */
+  box-sizing: content-box; /* 确保边框不影响位置计算 */
+  transform: translateY(0); /* 防止渲染模糊 */
 }
 
 .month-grid-lines {
@@ -1200,8 +1289,10 @@ h2 {
 .gantt-row {
   position: absolute;
   width: 100%;
+  height: v-bind('rowHeight + "px"'); /* 明确设置高度 */
   border-bottom: 1px solid #EBEEF5;
   transition: background-color 0.2s;
+  box-sizing: border-box; /* 确保边框计入高度计算 */
 }
 
 .gantt-row:hover {
