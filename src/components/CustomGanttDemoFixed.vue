@@ -39,16 +39,40 @@
           border>
           <!-- 项目名称列（固定） -->
           <el-table-column
+            prop="index"
+            label="序号"
+            align="center"
+            width="50">
+          </el-table-column>
+
+          <!-- 项目名称列（固定） -->
+          <el-table-column
             prop="projName"
             label="项目名称"
             align="left"
             :width="projectNameColumnWidth">
           </el-table-column>
           
+          <!-- 操作列（固定） -->
+          <el-table-column
+            label="操作"
+            align="center"
+            :width="operationColumnWidth">
+            <template slot-scope="scope">
+              <!-- 默认显示详情按钮，点击时触发事件给父组件处理 -->
+              <slot name="operation" :row="scope.row">
+                <el-button
+                  size="mini"
+                  @click="handleRowAction(scope.row)">详情</el-button>
+              </slot>
+            </template>
+          </el-table-column>
+          
           <!-- 状态列（固定） -->
           <el-table-column
             prop="status"
             label="状态"
+            align="center"
             :width="statusColumnWidth">
             <template slot-scope="scope">
               <el-tag :type="getStatusType(scope.row.status)">{{ scope.row.status }}</el-tag>
@@ -61,25 +85,13 @@
             :key="column.propName"
             :prop="column.propName"
             :label="column.columnName"
+            :align="column.align || 'center'"
             :width="column.width || column.defaultWidth">
             <template slot-scope="scope">
               {{ getExtraFieldValue(scope.row, column.propName) }}
             </template>
           </el-table-column>
           
-          <!-- 操作列（固定） -->
-          <el-table-column
-            label="操作"
-            :width="operationColumnWidth">
-            <template slot-scope="scope">
-              <!-- 默认显示详情按钮，点击时触发事件给父组件处理 -->
-              <slot name="operation" :row="scope.row">
-                <el-button
-                  size="mini"
-                  @click="handleRowAction(scope.row)">详情</el-button>
-              </slot>
-            </template>
-          </el-table-column>
         </el-table>
       </div>
       
@@ -590,7 +602,8 @@ export default {
           const cellInner = cell.querySelector('.cell');
           if (cellInner) {
             cellInner.style.height = `${this.headerHeight}px`;
-            cellInner.style.lineHeight = `${this.headerHeight}px`;
+            // 移除行高设置，防止影响对齐
+            // cellInner.style.lineHeight = `${this.headerHeight}px`;
             cellInner.style.boxSizing = 'border-box'; // 确保边框计入高度计算
           }
         });
@@ -612,10 +625,12 @@ export default {
             if (cellInner) {
               cellInner.style.height = `${this.rowHeight}px`;
               cellInner.style.boxSizing = 'border-box'; // 确保边框计入高度计算
-              cellInner.style.lineHeight = 'normal';
-              cellInner.style.display = 'flex';
-              cellInner.style.alignItems = 'center';
-              cellInner.style.justifyContent = 'center';
+              // 移除可能影响对齐的样式
+              // cellInner.style.lineHeight = 'normal';
+              // cellInner.style.display = 'flex';
+              // cellInner.style.alignItems = 'center';
+              // 移除强制居中对齐的样式，保留el-table-column的align属性功能
+              // cellInner.style.justifyContent = 'center';
             }
           });
         });
@@ -1937,5 +1952,25 @@ h2 {
   border-bottom: 1px solid #EBEEF5; /* 确保边框一致 */
   height: v-bind('rowHeight + "px"'); /* 显式设置高度 */
   box-sizing: border-box; /* 确保边框计入高度 */
+}
+
+/* 新增：修复el-table-column的align属性，确保对齐方式生效 */
+.gantt-table-container /deep/ .el-table__body td .cell,
+.gantt-table-container /deep/ .el-table__header th .cell {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 处理不同的align值 */
+.gantt-table-container /deep/ .el-table .is-left .cell {
+  justify-content: flex-start !important;
+}
+
+.gantt-table-container /deep/ .el-table .is-center .cell {
+  justify-content: center !important;
+}
+
+.gantt-table-container /deep/ .el-table .is-right .cell {
+  justify-content: flex-end !important;
 }
 </style> 

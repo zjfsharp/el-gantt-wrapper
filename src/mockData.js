@@ -17,6 +17,7 @@ export const mockProjects = [
         columnName: '通报项',
         propName: 'notifyItem',
         value: '第三季度设计方案变更通知',
+        align: 'left',
         show: 1
       },
       {
@@ -39,6 +40,7 @@ export const mockProjects = [
         columnName: '通报项',
         propName: 'notifyItem',
         value: '市场调研报告已提交',
+        align: 'left',
         show: 1
       },
       {
@@ -61,6 +63,7 @@ export const mockProjects = [
         columnName: '通报项',
         propName: 'notifyItem',
         value: '基础设施建设延期原因说明',
+        align: 'left',
         show: 1
       },
       {
@@ -87,6 +90,7 @@ export const mockProjects = [
     extraFields: [
       {
         columnName: '通报项',
+        align: 'left',
         propName: 'notifyItem',
         value: '本月新增招聘10人',
         show: 1
@@ -109,6 +113,7 @@ export const mockProjects = [
     extraFields: [
       {
         columnName: '通报项',
+        align: 'left',
         propName: 'notifyItem',
         value: '线上推广活动准备中',
         show: 1
@@ -131,6 +136,7 @@ export const mockProjects = [
     extraFields: [
       {
         columnName: '通报项',
+        align: 'left',
         propName: 'notifyItem',
         value: '系统架构方案正在重新评估',
         show: 1
@@ -159,6 +165,7 @@ export const mockProjects = [
     extraFields: [
       {
         columnName: '通报项',
+        align: 'left',
         propName: 'notifyItem',
         value: '正在准备市场调研',
         show: 1
@@ -181,6 +188,7 @@ export const mockProjects = [
     extraFields: [
       {
         columnName: '通报项',
+        align: 'left',
         propName: 'notifyItem',
         value: '新技术研发项目筹备中',
         show: 1
@@ -203,6 +211,7 @@ export const mockProjects = [
     extraFields: [
       {
         columnName: '通报项',
+        align: 'left',
         propName: 'notifyItem',
         value: '客户反馈系统上线通知',
         show: 1
@@ -225,6 +234,7 @@ export const mockProjects = [
     extraFields: [
       {
         columnName: '通报项',
+        align: 'left',
         propName: 'notifyItem',
         value: '流程优化已完成并实施',
         show: 1
@@ -247,6 +257,7 @@ export const mockProjects = [
     extraFields: [
       {
         columnName: '通报项',
+        align: 'left',
         propName: 'notifyItem',
         value: '流程优化已完成并实施',
         show: 1
@@ -269,6 +280,7 @@ export const mockProjects = [
     extraFields: [
       {
         columnName: '通报项',
+        align: 'left',
         propName: 'notifyItem',
         value: '流程优化已完成并实施',
         show: 1
