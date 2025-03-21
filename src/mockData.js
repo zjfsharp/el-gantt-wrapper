@@ -8,8 +8,6 @@ export const mockProjects = [
   {
     index: 1,
     projName: '产品设计与开发',
-    manager: '张三',
-    priority: '高',
     startDate: '2022-06',
     endDate: '2023-05',
     progress: 85,
@@ -32,8 +30,6 @@ export const mockProjects = [
   {
     index: 2,
     projName: '市场调研与分析',
-    manager: '李四',
-    priority: '中',
     startDate: '2022-03',
     endDate: '2022-09',
     progress: 100,
@@ -56,8 +52,6 @@ export const mockProjects = [
   {
     index: 3,
     projName: '基础设施建设',
-    manager: '王五',
-    priority: '高',
     startDate: '2022-06',
     endDate: '2024-02',
     progress: 65,
@@ -86,8 +80,6 @@ export const mockProjects = [
   {
     index: 4,
     projName: '人员招聘与培训',
-    manager: '赵六',
-    priority: '中',
     startDate: '2022-08',
     endDate: '2023-07',
     progress: 75,
@@ -110,8 +102,6 @@ export const mockProjects = [
   {
     index: 5,
     projName: '品牌推广计划',
-    manager: '钱七',
-    priority: '中',
     startDate: '2023-02',
     endDate: '2023-12',
     progress: 40,
@@ -134,8 +124,6 @@ export const mockProjects = [
   {
     index: 6,
     projName: '系统架构升级',
-    manager: '孙八',
-    priority: '高',
     startDate: '2023-04',
     endDate: '2024-04',
     progress: 25,
@@ -164,8 +152,6 @@ export const mockProjects = [
   {
     index: 7,
     projName: '国际市场拓展',
-    manager: '周九',
-    priority: '高',
     startDate: '2023-09',
     endDate: '2025-03',
     progress: 10,
@@ -188,8 +174,6 @@ export const mockProjects = [
   {
     index: 8,
     projName: '研发新技术',
-    manager: '吴十',
-    priority: '高',
     startDate: '2023-11',
     endDate: '2025-06',
     progress: 5,
@@ -212,8 +196,6 @@ export const mockProjects = [
   {
     index: 9,
     projName: '客户反馈系统',
-    manager: '郑十一',
-    priority: '中',
     startDate: '2022-05',
     endDate: '2022-11',
     progress: 100,
@@ -236,8 +218,6 @@ export const mockProjects = [
   {
     index: 10,
     projName: '内部流程优化',
-    manager: '王十二',
-    priority: '低',
     startDate: '2022-07',
     endDate: '2023-01',
     progress: 100,
@@ -260,8 +240,6 @@ export const mockProjects = [
   {
     index: 11,
     projName: '内部流程优化11',
-    manager: '王十二',
-    priority: '低',
     startDate: '2022-07',
     endDate: '2023-01',
     progress: 100,
@@ -284,8 +262,6 @@ export const mockProjects = [
   {
     index: 12,
     projName: '内部流程优化12',
-    manager: '王十二',
-    priority: '低',
     startDate: '2022-07',
     endDate: '2023-01',
     progress: 100,

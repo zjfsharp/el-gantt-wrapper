@@ -46,33 +46,6 @@
             width="150">
           </el-table-column>
           
-          <!-- 负责人列（固定） -->
-          <el-table-column
-            prop="manager"
-            label="负责人"
-            width="100">
-          </el-table-column>
-          
-          <!-- 优先级列（固定） -->
-          <el-table-column
-            prop="priority"
-            label="优先级"
-            width="80">
-            <template slot-scope="scope">
-              <el-tag :type="getPriorityType(scope.row.priority)">{{ scope.row.priority }}</el-tag>
-            </template>
-          </el-table-column>
-          
-          <!-- 进度列（固定） -->
-          <el-table-column
-            prop="progress"
-            label="进度"
-            width="150">
-            <template slot-scope="scope">
-              <el-progress :percentage="scope.row.progress" :status="getProgressStatus(scope.row.progress)"></el-progress>
-            </template>
-          </el-table-column>
-          
           <!-- 状态列（固定） -->
           <el-table-column
             prop="status"
