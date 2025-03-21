@@ -256,109 +256,53 @@ export const mockProjects = [
         show: 1
       }
     ]
+  },
+  {
+    index: 11,
+    projName: '内部流程优化11',
+    manager: '王十二',
+    priority: '低',
+    startDate: '2022-07',
+    endDate: '2023-01',
+    progress: 100,
+    status: '已完成',
+    extraFields: [
+      {
+        columnName: '通报项',
+        propName: 'notifyItem',
+        value: '流程优化已完成并实施',
+        show: 1
+      },
+      {
+        columnName: '负责部门',
+        propName: 'department',
+        value: '运营部',
+        show: 1
+      }
+    ]
+  },
+  {
+    index: 12,
+    projName: '内部流程优化12',
+    manager: '王十二',
+    priority: '低',
+    startDate: '2022-07',
+    endDate: '2023-01',
+    progress: 100,
+    status: '已完成',
+    extraFields: [
+      {
+        columnName: '通报项',
+        propName: 'notifyItem',
+        value: '流程优化已完成并实施',
+        show: 1
+      },
+      {
+        columnName: '负责部门',
+        propName: 'department',
+        value: '运营部',
+        show: 1
+      }
+    ]
   }
 ];
-
-// 系统支持的所有可选动态列定义
-export const availableExtraColumns = [
-  {
-    columnName: '通报项',
-    propName: 'notifyItem',
-    defaultWidth: 150,
-    defaultShow: true,
-    order: 1
-  },
-  {
-    columnName: '负责部门',
-    propName: 'department',
-    defaultWidth: 100,
-    defaultShow: true,
-    order: 2
-  },
-  {
-    columnName: '延期原因',
-    propName: 'delayReason',
-    defaultWidth: 120,
-    defaultShow: false,
-    order: 3
-  },
-  {
-    columnName: '风险评估',
-    propName: 'riskAssessment',
-    defaultWidth: 100,
-    defaultShow: false,
-    order: 4
-  },
-  {
-    columnName: '预算信息',
-    propName: 'budgetInfo',
-    defaultWidth: 120,
-    defaultShow: false,
-    order: 5
-  }
-];
-
-// 获取当前日期的年份和月份
-export const getCurrentYearMonth = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  return `${year}-${month < 10 ? '0' + month : month}`;
-};
-
-// 获取所有项目的最小和最大日期
-export const getDateRange = (projects) => {
-  let minDate = null;
-  let maxDate = null;
-  
-  projects.forEach(project => {
-    const start = new Date(project.startDate);
-    const end = new Date(project.endDate);
-    
-    if (!minDate || start < minDate) {
-      minDate = start;
-    }
-    
-    if (!maxDate || end > maxDate) {
-      maxDate = end;
-    }
-  });
-  
-  return { minDate, maxDate };
-};
-
-// 获取两个日期之间的月份数
-export const getMonthsBetween = (startDate, endDate) => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  
-  let months = (end.getFullYear() - start.getFullYear()) * 12;
-  months -= start.getMonth();
-  months += end.getMonth();
-  
-  return months <= 0 ? 0 : months + 1;
-};
-
-// 生成年月标题数组
-export const generateYearMonthHeaders = (startDate, endDate) => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  
-  const headers = [];
-  let currentDate = new Date(start);
-  
-  while (currentDate <= end) {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
-    
-    headers.push({
-      year,
-      month,
-      label: `${year}-${month < 10 ? '0' + month : month}`
-    });
-    
-    currentDate.setMonth(currentDate.getMonth() + 1);
-  }
-  
-  return headers;
-}; 

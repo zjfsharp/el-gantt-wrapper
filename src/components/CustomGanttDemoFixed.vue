@@ -1,11 +1,37 @@
 <template>
   <div class="gantt-demo">
+    <!-- 控制面板区域 -->
+    <div class="gantt-controls" v-if="showColumnControl || showFilter">
+      <!-- 项目筛选器 -->
+      <div v-if="showFilter" class="filter-container">
+        <span class="filter-label">项目筛选：</span>
+        <el-radio-group v-model="internalFilter" @change="handleFilterChange">
+          <el-radio label="all">所有项目</el-radio>
+          <el-radio label="completed">已完成项目</el-radio>
+          <el-radio label="inProgress">进行中项目</el-radio>
+        </el-radio-group>
+      </div>
+      
+      <!-- 动态列控制面板 -->
+      <div v-if="showColumnControl" class="column-control-panel">
+        <!-- <span class="column-control-label">显示列：</span> -->
+        <el-checkbox-group v-model="selectedColumns" @change="handleColumnChange">
+          <el-checkbox 
+            v-for="column in availableColumns" 
+            :key="column.propName" 
+            :label="column.propName">
+            {{ column.columnName }}
+          </el-checkbox>
+        </el-checkbox-group>
+      </div>
+    </div>
+    
     <div class="custom-gantt">
       <!-- 左侧固定表格 -->
       <div class="gantt-table-container">
         <el-table
           ref="ganttTable"
-          :data="projectsData"
+          :data="filteredProjects"
           style="width: 100%"
           height="100%"
           :header-row-class-name="'gantt-table-header'"
@@ -252,7 +278,8 @@
 </template>
 
 <script>
-import { mockProjects, getCurrentYearMonth, availableExtraColumns } from '../mockData';
+// 不再导入工具函数，我们将它们整合到组件内部
+// import { getCurrentYearMonth } from '../mockData';
 
 export default {
   name: 'CustomGanttDemoFixed',
@@ -272,11 +299,35 @@ export default {
       default: 72,
       description: '头部高度，包含年份行和月份行的高度总和'
     },
-    // 接收要显示的动态列配置
-    extraColumns: {
+    // 是否显示列控制面板
+    showColumnControl: {
+      type: Boolean,
+      default: false,
+      description: '是否显示列控制面板，用于自定义显示哪些动态列'
+    },
+    // 项目数据
+    projects: {
       type: Array,
-      default: () => [], // 如果父组件未提供，则默认为空数组
-      description: '要显示的动态列配置，为空时显示默认设置为显示的列'
+      default: () => [],
+      description: '甘特图显示的项目数据数组'
+    },
+    // 当前年月，格式为 YYYY-MM
+    currentMonth: {
+      type: String,
+      default: '',
+      description: '当前年月，格式为YYYY-MM。如果不提供，将使用系统当前日期'
+    },
+    // 项目筛选条件
+    filter: {
+      type: String,
+      default: 'all', // 'all', 'completed', 'inProgress'
+      description: '项目筛选条件，可选值：all(所有)、completed(已完成)、inProgress(进行中)'
+    },
+    // 是否显示项目筛选器
+    showFilter: {
+      type: Boolean,
+      default: false,
+      description: '是否显示项目筛选器'
     }
   },
   data() {
@@ -286,7 +337,7 @@ export default {
       monthHeaders: [],
       startYearMonth: '',
       endYearMonth: '',
-      currentYearMonth: getCurrentYearMonth(),
+      currentYearMonth: this.currentMonth || this.getCurrentYearMonth(),
       currentMonthPosition: 0,
       dialogVisible: false,
       currentProject: null,
@@ -297,27 +348,39 @@ export default {
       isUpdatingLines: false, // 防止重复更新网格线
       isCurrentMonthVisible: false, // 当前月份是否在显示范围内
       // 系统所有可用动态列
-      availableColumns: [...availableExtraColumns]
+      availableColumns: [],
+      // 当前选中的动态列
+      selectedColumns: [],
+      // 内部项目筛选器
+      internalFilter: this.filter
     };
   },
   computed: {
     // 计算当前应该显示的动态列
     displayedExtraColumns() {
-      // 如果父组件提供了配置，则使用父组件的配置
-      if (this.extraColumns && this.extraColumns.length > 0) {
-        return this.extraColumns
-          .map(colName => {
-            // 找到可用列中的匹配项，以获取完整配置
-            const matchedCol = this.availableColumns.find(col => col.propName === colName);
-            return matchedCol || null;
-          })
-          .filter(col => col !== null) // 过滤掉不存在的列配置
-          .sort((a, b) => a.order - b.order); // 按照预定义的顺序排列
-      } else {
-        // 否则显示默认设置为显示的列
-        return this.availableColumns
-          .filter(col => col.defaultShow)
-          .sort((a, b) => a.order - b.order);
+      return this.availableColumns
+        .filter(col => this.selectedColumns.includes(col.propName))
+        .sort((a, b) => a.order - b.order);
+    },
+    
+    // 根据筛选条件过滤的项目
+    filteredProjects() {
+      // 如果projectsData为空，返回空数组
+      if (!this.projectsData || this.projectsData.length === 0) {
+        return [];
+      }
+      
+      // 根据筛选条件过滤项目
+      switch(this.internalFilter) {
+        case 'completed':
+          return this.projectsData.filter(project => project.status === '已完成');
+        case 'inProgress':
+          return this.projectsData.filter(
+            project => project.status === '进行中' || project.status === '延期中'
+          );
+        case 'all':
+        default:
+          return [...this.projectsData];
       }
     }
   },
@@ -366,6 +429,100 @@ export default {
     }
   },
   methods: {
+    // 处理筛选器变更
+    handleFilterChange(value) {
+      this.internalFilter = value;
+      // 触发过滤事件，通知父组件
+      this.$emit('filter-change', value);
+    },
+    
+    // 从mockData.js整合的基础函数
+    // 获取当前日期的年份和月份
+    getCurrentYearMonth() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      return `${year}-${month < 10 ? '0' + month : month}`;
+    },
+    
+    // 获取两个日期之间的月份数
+    getMonthsBetween(startDate, endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      let months = (end.getFullYear() - start.getFullYear()) * 12;
+      months -= start.getMonth();
+      months += end.getMonth();
+      
+      return months <= 0 ? 0 : months + 1;
+    },
+    
+    // 生成年月标题数组
+    generateYearMonthHeaders(startDate, endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      const headers = [];
+      let currentDate = new Date(start);
+      
+      while (currentDate <= end) {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+        
+        headers.push({
+          year,
+          month,
+          label: `${year}-${month < 10 ? '0' + month : month}`
+        });
+        
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+      
+      return headers;
+    },
+    
+    // 处理列选择变化
+    handleColumnChange(value) {
+      console.log('选择的列变更为:', value);
+      // 可以在这里添加其他处理逻辑
+      this.$emit('columns-change', value);
+    },
+    
+    // 初始化可用列和选中列
+    initAvailableColumns() {
+      // 收集所有项目的所有extraFields
+      const allFields = new Map();
+      
+      // 遍历所有项目，收集所有的extraFields
+      this.projectsData.forEach(project => {
+        if (project.extraFields && Array.isArray(project.extraFields)) {
+          project.extraFields.forEach(field => {
+            // 使用propName作为键，确保唯一性
+            if (!allFields.has(field.propName)) {
+              allFields.set(field.propName, {
+                propName: field.propName,
+                columnName: field.columnName,
+                defaultWidth: 120,
+                order: allFields.size + 1, // 使用当前大小作为顺序
+                show: field.show
+              });
+            }
+          });
+        }
+      });
+      
+      // 将Map转换为数组
+      this.availableColumns = Array.from(allFields.values());
+      
+      // 初始化选中的列（show为1的列）
+      this.selectedColumns = this.availableColumns
+        .filter(col => col.show === 1)
+        .map(col => col.propName);
+      
+      console.log('初始化可用列:', this.availableColumns);
+      console.log('初始化选中列:', this.selectedColumns);
+    },
+    
     // 获取指定项目的动态字段值
     getExtraFieldValue(project, propName) {
       if (!project.extraFields) return '';
@@ -468,13 +625,23 @@ export default {
     },
     
     initData() {
-      this.projectsData = mockProjects;
+      // 使用props传入的项目数据，如果没有则为空数组
+      this.projectsData = this.projects.length > 0 ? [...this.projects] : [];
+      
+      // 如果没有数据，直接返回
+      if (this.projectsData.length === 0) {
+        console.warn('没有提供项目数据，甘特图将为空');
+        return;
+      }
+      
+      // 初始化可用列和选中列
+      this.initAvailableColumns();
       
       // 查找最早和最晚的日期
       let minDate = new Date('2099-12');
       let maxDate = new Date('2000-01');
       
-      mockProjects.forEach(project => {
+      this.projectsData.forEach(project => {
         const startDate = new Date(`${project.startDate}-01`);
         const endDate = new Date(`${project.endDate}-01`);
         
@@ -1077,6 +1244,32 @@ export default {
         });
       },
       deep: true
+    },
+    // 监听props中的projects变化，重新初始化数据
+    projects: {
+      handler(newVal) {
+        if (newVal && newVal.length > 0) {
+          this.initData();
+        }
+      },
+      deep: true,
+      immediate: true
+    },
+    // 监听currentMonth的变化
+    currentMonth: {
+      handler(newVal) {
+        if (newVal) {
+          this.currentYearMonth = newVal;
+          // 重新计算当前月份位置
+          this.calculateCurrentMonthPosition();
+          // 更新当前月份可见性
+          this.updateCurrentMonthVisibility();
+          // 滚动到当前月份
+          this.$nextTick(() => {
+            this.scrollToCurrentMonth();
+          });
+        }
+      }
     }
   }
 };
@@ -1094,6 +1287,61 @@ h2 {
   text-align: left;
   margin: 10px 0 20px;
   color: #303133;
+}
+
+/* 控制面板 */
+.gantt-controls {
+  /* margin-bottom: 15px; */
+  padding: 10px 10px 0 10px;
+  /* background-color: #f5f7fa; */
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+/* 项目筛选器样式 */
+.filter-container {
+  padding: 10px;
+  background-color: #f0f5ff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.filter-label {
+  font-weight: bold;
+  margin-right: 10px;
+  color: #606266;
+}
+
+/* 列控制面板样式 */
+.column-control-panel {
+  padding: 10px 15px;
+  background-color: #f0f9eb;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  display: flex;
+}
+
+.column-control-panel h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #409EFF;
+  font-size: 15px;
+}
+
+.column-control-panel .el-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.column-control-panel .el-checkbox {
+  margin-right: 15px;
+  margin-bottom: 8px;
 }
 
 .custom-gantt {
@@ -1604,5 +1852,31 @@ h2 {
   will-change: transform, height; /* 优化动画性能 */
   transition: height 0.1s ease-out; /* 平滑高度变化 */
   transform: translateZ(0); /* 启用GPU加速 */
+}
+
+.column-control-panel {
+  padding: 10px 15px 0 15px;
+  /* background-color: #f5f7fa; */
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+  /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); */
+}
+
+.column-control-panel h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #409EFF;
+  font-size: 16px;
+}
+
+.column-control-panel .el-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.column-control-panel .el-checkbox {
+  margin-right: 15px;
+  margin-bottom: 8px;
 }
 </style> 
