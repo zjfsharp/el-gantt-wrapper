@@ -14,7 +14,6 @@
       
       <!-- 动态列控制面板 -->
       <div v-if="showColumnControl" class="column-control-panel">
-        <!-- <span class="column-control-label">显示列：</span> -->
         <el-checkbox-group v-model="selectedColumns" @change="handleColumnChange">
           <el-checkbox 
             v-for="column in availableColumns" 
