@@ -33,7 +33,7 @@
           ref="ganttTable"
           :data="filteredProjects"
           style="width: 100%"
-          height="100%"
+          :height="getVisibleHeight() + headerHeight"
           :header-row-class-name="'gantt-table-header'"
           :row-class-name="'gantt-table-row'"
           :row-height="rowHeight"
@@ -174,7 +174,7 @@
               }"
               :style="{ 
                 left: `${getMonthPosition(monthIndex)}px`,
-                height: `${projectsData.length * rowHeight}px`
+                height: `${getTotalHeight()}px`
               }">
             </div>
             <!-- 最后一个月的右边界 -->
@@ -182,7 +182,7 @@
               class="month-grid-line"
               :style="{ 
                 left: `${getTotalWidth()}px`,
-                height: `${projectsData.length * rowHeight}px`
+                height: `${getTotalHeight()}px`
               }">
             </div>
           </div>
@@ -194,7 +194,7 @@
             :style="{ 
               left: `${getMonthPosition(getCurrentMonthIndex())}px`,
               width: `${monthHeaders[getCurrentMonthIndex()].width}px`,
-              height: `${projectsData.length * rowHeight}px`
+              height: `${getTotalHeight()}px`
             }">
           </div>
           
@@ -204,7 +204,7 @@
             class="current-month-indicator" 
             :style="{ 
               left: `${currentMonthPosition}px`,
-              height: `${projectsData.length * rowHeight}px`
+              height: `${getTotalHeight()}px`
             }">
             <!-- 当前日期标签容器 -->
             <div class="current-date-label-container">
@@ -328,6 +328,12 @@ export default {
       type: Boolean,
       default: false,
       description: '是否显示项目筛选器'
+    },
+    // 最大可见行数
+    maxVisibleRows: {
+      type: Number,
+      default: 10,
+      description: '甘特图最大显示的行数，超过该数值的项目需要通过滚动查看'
     }
   },
   data() {
@@ -534,8 +540,7 @@ export default {
       // 获取表格体的滚动容器
       const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
       if (tableBodyWrapper) {
-        // 隐藏表格的滚动条
-        tableBodyWrapper.style.overflowY = 'hidden';
+        // 只隐藏水平滚动条，保留垂直滚动条
         tableBodyWrapper.style.overflowX = 'hidden';
         
         // 添加垂直滚动同步
@@ -552,11 +557,12 @@ export default {
       // 获取甘特图滚动容器的滚动位置
       const ganttContainer = this.$refs.ganttChartContainer;
       const scrollTop = ganttContainer.scrollTop;
+      const scrollLeft = ganttContainer.scrollLeft;
       
       // 获取表格体的滚动容器
       const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
       if (tableBodyWrapper) {
-        // 直接设置滚动位置，不使用动画，确保精确对齐
+        // 同步垂直滚动位置
         tableBodyWrapper.scrollTop = scrollTop;
       }
       
@@ -1096,6 +1102,11 @@ export default {
       return this.projectsData.length * this.rowHeight;
     },
     
+    // 获取显示高度（可见项目高度）
+    getVisibleHeight() {
+      return Math.min(this.maxVisibleRows, this.filteredProjects.length) * this.rowHeight;
+    },
+    
     // 获取总宽度（实际甘特图宽度）
     getTotalWidthWithSafety() {
       return this.getTotalWidth();
@@ -1129,7 +1140,7 @@ export default {
         
         // 计算总内容宽度和高度
         const totalWidth = this.getTotalWidth();
-        const totalHeight = this.projectsData.length * this.rowHeight;
+        const totalHeight = this.getTotalHeight();
         
         // 批量更新DOM，减少重排和重绘
         // 更新水平网格线宽度
@@ -1233,6 +1244,14 @@ export default {
           tableBodyWrapper.scrollTop = scrollTop;
         }
       }, 50);
+    },
+    // 计算甘特图高度
+    getChartHeight() {
+      // 计算实际需要的高度 (表头高度 + 行高 * 显示行数)
+      const calculatedHeight = this.headerHeight + this.getVisibleHeight();
+      
+      // 加上一些额外的空间用于边框和滚动条
+      return `${calculatedHeight + 2}px`;
     },
   },
   watch: {
@@ -1347,7 +1366,7 @@ h2 {
 .custom-gantt {
   display: flex;
   flex: 1;
-  height: calc(100vh - 200px);
+  height: v-bind('getChartHeight()');
   border: 1px solid #EBEEF5;
   border-radius: 4px;
   overflow: hidden;
@@ -1402,17 +1421,25 @@ h2 {
 }
 
 .gantt-table-container /deep/ .el-table__body-wrapper::-webkit-scrollbar {
-  width: 0; /* 隐藏WebKit浏览器滚动条 */
+  width: 8px; /* 滚动条宽度 */
   height: 0;
+}
+
+.gantt-table-container /deep/ .el-table__body-wrapper::-webkit-scrollbar-thumb {
+  background-color: #DCDFE6;
+  border-radius: 4px;
+}
+
+.gantt-table-container /deep/ .el-table__body-wrapper::-webkit-scrollbar-track {
+  background-color: #F5F7FA;
 }
 
 .gantt-table-container /deep/ .el-table__body-wrapper {
   position: relative; /* 添加相对定位 */
-  overflow: hidden !important; /* 确保无滚动条 */
-  scrollbar-width: none; /* 隐藏Firefox浏览器滚动条 */
-  -ms-overflow-style: none; /* 隐藏IE浏览器滚动条 */
-  overflow-y: hidden !important;
-  overflow-x: hidden !important;
+  overflow-y: auto !important; /* 允许垂直滚动 */
+  overflow-x: hidden !important; /* 隐藏水平滚动条 */
+  scrollbar-width: thin; /* 细滚动条样式 */
+  -ms-overflow-style: auto; /* IE浏览器滚动条样式 */
 }
 
 .gantt-table-container /deep/ .el-table__body {

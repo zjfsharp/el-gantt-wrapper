@@ -21,6 +21,7 @@
         <CustomGanttDemoFixed 
           :projects="mockProjects" 
           :show-column-control="false" 
+          :max-visible-rows="5"
           @project-click="handleProjectClick" 
         />
       </el-tab-pane>
@@ -29,6 +30,15 @@
           :projects="mockProjects" 
           :show-column-control="true" 
           :show-filter="true"
+          :max-visible-rows="8"
+          @project-click="handleProjectClick"
+        />
+      </el-tab-pane>
+      <el-tab-pane label="高度调整示例" name="height">
+        <CustomGanttDemoFixed 
+          :projects="mockProjects" 
+          :show-column-control="true"
+          :max-visible-rows="maxRows"
           @project-click="handleProjectClick"
         />
       </el-tab-pane>
@@ -93,6 +103,7 @@ export default {
           <li><strong>showColumnControl</strong>: 是否显示列控制面板</li>
           <li><strong>headerHeight</strong>: 表头高度(默认: 40px)</li>
           <li><strong>rowHeight</strong>: 行高(默认: 44px)</li>
+          <li><strong>maxVisibleRows</strong>: 最大可见行数(默认: 10)，超出部分通过滚动查看</li>
         </ul>
 
         <h3>事件</h3>
@@ -122,6 +133,7 @@ export default {
           <li>✅ 表格与甘特图区域滚动同步</li>
           <li>✅ 项目进度条可视化</li>
           <li>✅ 项目状态颜色区分</li>
+          <li>✅ 可控制最大显示行数，提高性能</li>
         </ul>
 
         <h3>开发者信息</h3>
@@ -210,7 +222,8 @@ export default {
       showGuide: false,
       showHelp: false,
       showProjectDetails: false,
-      selectedProject: null
+      selectedProject: null,
+      maxRows: 10
     };
   },
   methods: {
@@ -333,5 +346,25 @@ h4 {
   padding-bottom: 5px;
   border-bottom: 1px solid #ebeef5;
   color: #303133;
+}
+
+.height-control-panel {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f0f9eb;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.height-control-panel span {
+  margin-right: 15px;
+  font-weight: bold;
+  color: #606266;
+  min-width: 100px;
+}
+
+.height-control-panel .el-slider {
+  width: 70%;
 }
 </style> 

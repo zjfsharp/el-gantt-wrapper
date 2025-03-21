@@ -11,6 +11,7 @@
 - ✅ 项目进度条可视化
 - ✅ 项目状态颜色区分
 - ✅ 支持自定义样式和主题
+- ✅ 可控制最大显示行数，提高性能
 
 ## 安装
 
@@ -71,6 +72,7 @@ export default {
 | showColumnControl | Boolean | false | 是否显示列控制面板 |
 | headerHeight | Number | 40 | 表头高度(px) |
 | rowHeight | Number | 44 | 行高(px) |
+| maxVisibleRows | Number | 10 | 最大可见行数，超出部分通过滚动查看 |
 | extraProps | Object | null | 额外传递给组件的属性 |
 
 ### 事件
