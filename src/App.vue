@@ -16,43 +16,23 @@
       <p>这是一个基于Vue2和ElementUI的甘特图组件，支持动态列控制、项目过滤和自适应设计。</p>
     </div>
 
-    <el-tabs v-model="activeTab" type="card" class="demo-tabs">
-      <el-tab-pane label="基础甘特图" name="basic">
-        <CustomGanttDemoFixed 
-          :projects="mockProjects" 
-          :show-column-control="false" 
-          :max-visible-rows="5"
-          @row-action="handleProjectClick" 
-        />
-      </el-tab-pane>
-      <el-tab-pane label="可控制动态列" name="dynamic">
-        <CustomGanttDemoFixed 
-          :projects="mockProjects" 
-          :show-column-control="true" 
-          :show-filter="true"
-          :max-visible-rows="8"
-          :project-name-column-width="200"
-          :status-column-width="80"
-          :operation-column-width="100"
-          @row-action="handleProjectClick">
-          <template #operation="{ row }">
-            <div class="operation-buttons">
-              <el-button size="mini" type="primary" icon="el-icon-view" @click="handleViewProject(row)">查看</el-button>
-              <!-- <el-button size="mini" type="success" icon="el-icon-edit" @click="handleEditProject(row)">编辑</el-button>
-              <el-button size="mini" type="danger" icon="el-icon-delete" @click="handleDeleteProject(row)">删除</el-button> -->
-            </div>
-          </template>
-        </CustomGanttDemoFixed>
-      </el-tab-pane>
-      <el-tab-pane label="高度调整示例" name="height">
-        <CustomGanttDemoFixed 
-          :projects="mockProjects" 
-          :show-column-control="true"
-          :max-visible-rows="maxRows"
-          @row-action="handleProjectClick"
-        />
-      </el-tab-pane>
-    </el-tabs>
+    <CustomGanttDemoFixed 
+      :projects="mockProjects" 
+      :show-column-control="true" 
+      :show-filter="true"
+      :max-visible-rows="8"
+      :project-name-column-width="200"
+      :status-column-width="80"
+      :operation-column-width="100"
+      @row-action="handleProjectClick">
+      <template #operation="{ row }">
+        <div class="operation-buttons">
+          <el-button size="mini" type="primary" icon="el-icon-view" @click="handleViewProject(row)">查看</el-button>
+          <!-- <el-button size="mini" type="success" icon="el-icon-edit" @click="handleEditProject(row)">编辑</el-button>
+          <el-button size="mini" type="danger" icon="el-icon-delete" @click="handleDeleteProject(row)">删除</el-button> -->
+        </div>
+      </template>
+    </CustomGanttDemoFixed>
 
     <!-- 使用指南对话框 -->
     <el-dialog

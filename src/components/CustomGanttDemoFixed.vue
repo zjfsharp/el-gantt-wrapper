@@ -534,8 +534,11 @@ export default {
       // 获取表格体的滚动容器
       const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
       if (tableBodyWrapper) {
-        // 只隐藏水平滚动条，保留垂直滚动条
-        tableBodyWrapper.style.overflowX = 'hidden';
+        // 隐藏表格的所有滚动条
+        tableBodyWrapper.style.overflowY = 'hidden';
+        
+        // 确保表格内容仍然可以滚动（CSS设置滚动区域）
+        tableBodyWrapper.style.position = 'relative';
         
         // 添加垂直滚动同步
         this.initScrollSync();
@@ -551,7 +554,6 @@ export default {
       // 获取甘特图滚动容器的滚动位置
       const ganttContainer = this.$refs.ganttChartContainer;
       const scrollTop = ganttContainer.scrollTop;
-      const scrollLeft = ganttContainer.scrollLeft;
       
       // 获取表格体的滚动容器
       const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
@@ -1063,39 +1065,20 @@ export default {
         }
       }
     },
-    // 高性能表格滚动同步
-    syncTableScroll() {
-      // 获取表格体的滚动容器
-      const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
-      if (!tableBodyWrapper) return;
-      
-      // 给表格体添加滚动事件监听器
-      tableBodyWrapper.addEventListener('scroll', (e) => {
-        // 使用节流而不是防抖，确保滚动时的平滑性
-        if (this.isScrolling) return;
-        
-        this.isScrolling = true;
-        
-        // 获取表格滚动位置
-        const scrollTop = tableBodyWrapper.scrollTop;
-        
-        // 同步甘特图的垂直滚动位置
-        const ganttContainer = this.$refs.ganttChartContainer;
-        if (ganttContainer) {
-          // 直接设置滚动位置，不使用动画，确保精确对齐
-          ganttContainer.scrollTop = scrollTop;
-        }
-        
-        // 允许下一次滚动事件在2ms后生效
-        setTimeout(() => {
-          this.isScrolling = false;
-        }, 2);
-      }, { passive: true });
-    },
     // 初始化双向滚动同步
     initScrollSync() {
       this.$nextTick(() => {
-        this.syncTableScroll();
+        // 移除表格滚动事件监听，只保留甘特图滚动事件
+        // 不再需要syncTableScroll方法，现在只需要甘特图滚动时同步到表格
+        
+        // 确保甘特图滚动事件被监听
+        const ganttContainer = this.$refs.ganttChartContainer;
+        if (ganttContainer) {
+          // 先移除可能存在的事件监听器
+          ganttContainer.removeEventListener('scroll', this.handleGanttScroll);
+          // 添加滚动事件监听器
+          ganttContainer.addEventListener('scroll', this.handleGanttScroll, { passive: true });
+        }
       });
     },
     // 获取总高度（实际项目高度）
@@ -1355,7 +1338,6 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 0 20px;
 }
 
 h2 {
@@ -1369,7 +1351,8 @@ h2 {
   /* margin-bottom: 15px; */
   padding: 10px 10px 0 10px;
   /* background-color: #f5f7fa; */
-  border-radius: 4px;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
   border: 1px solid #e4e7ed;
   display: flex;
   flex-wrap: wrap;
@@ -1440,6 +1423,21 @@ h2 {
   transition: width 0.3s ease-in-out; /* 添加平滑过渡效果 */
 }
 
+/* 隐藏表格滚动条但保留滚动功能 */
+.gantt-table-container /deep/ .el-table__body-wrapper::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.gantt-table-container /deep/ .el-table__body-wrapper {
+  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+  position: relative; /* 添加相对定位 */
+  overflow-y: hidden !important; /* 隐藏垂直滚动条 */
+  /* overflow-x: hidden !important;  隐藏水平滚动条 */
+}
+
 .gantt-table-container /deep/ .gantt-table-header {
   height: v-bind('headerHeight + "px"');
   border-bottom: 1px solid #DCDFE6; /* 添加表头下边框 */
@@ -1475,39 +1473,6 @@ h2 {
   height: v-bind('rowHeight + "px"');
   box-sizing: border-box; /* 确保边框计入高度计算 */
   border-bottom: 1px solid #EBEEF5; /* 确保边框样式一致 */
-}
-
-.gantt-table-container /deep/ .el-table__body-wrapper::-webkit-scrollbar {
-  width: 8px; /* 滚动条宽度 */
-  height: 0;
-}
-
-.gantt-table-container /deep/ .el-table__body-wrapper::-webkit-scrollbar-thumb {
-  background-color: #DCDFE6;
-  border-radius: 4px;
-}
-
-.gantt-table-container /deep/ .el-table__body-wrapper::-webkit-scrollbar-track {
-  background-color: #F5F7FA;
-}
-
-.gantt-table-container /deep/ .el-table__body-wrapper {
-  position: relative; /* 添加相对定位 */
-  overflow-y: auto !important; /* 允许垂直滚动 */
-  overflow-x: hidden !important; /* 隐藏水平滚动条 */
-  scrollbar-width: thin; /* 细滚动条样式 */
-  -ms-overflow-style: auto; /* IE浏览器滚动条样式 */
-}
-
-.gantt-table-container /deep/ .el-table__body {
-  position: relative; /* 添加相对定位 */
-}
-
-.gantt-table-container /deep/ .el-table__body tr {
-  position: relative; /* 添加相对定位 */
-  border-bottom: 1px solid #EBEEF5; /* 确保边框一致 */
-  height: v-bind('rowHeight + "px"'); /* 显式设置高度 */
-  box-sizing: border-box; /* 确保边框计入高度 */
 }
 
 .gantt-chart-container {
@@ -1962,5 +1927,16 @@ h2 {
 .column-control-panel .el-checkbox {
   margin-right: 15px;
   margin-bottom: 8px;
+}
+
+.gantt-table-container /deep/ .el-table__body {
+  position: relative; /* 添加相对定位 */
+}
+
+.gantt-table-container /deep/ .el-table__body tr {
+  position: relative; /* 添加相对定位 */
+  border-bottom: 1px solid #EBEEF5; /* 确保边框一致 */
+  height: v-bind('rowHeight + "px"'); /* 显式设置高度 */
+  box-sizing: border-box; /* 确保边框计入高度 */
 }
 </style> 
