@@ -10,17 +10,24 @@
           height="100%"
           :header-row-class-name="'gantt-table-header'"
           :row-class-name="'gantt-table-row'"
-          :row-height="rowHeight">
+          :row-height="rowHeight"
+          border>
+          <!-- 项目名称列（固定） -->
           <el-table-column
-            prop="name"
+            prop="projName"
             label="项目名称"
+            align="left"
             width="150">
           </el-table-column>
+          
+          <!-- 负责人列（固定） -->
           <el-table-column
             prop="manager"
             label="负责人"
             width="100">
           </el-table-column>
+          
+          <!-- 优先级列（固定） -->
           <el-table-column
             prop="priority"
             label="优先级"
@@ -29,6 +36,8 @@
               <el-tag :type="getPriorityType(scope.row.priority)">{{ scope.row.priority }}</el-tag>
             </template>
           </el-table-column>
+          
+          <!-- 进度列（固定） -->
           <el-table-column
             prop="progress"
             label="进度"
@@ -37,6 +46,8 @@
               <el-progress :percentage="scope.row.progress" :status="getProgressStatus(scope.row.progress)"></el-progress>
             </template>
           </el-table-column>
+          
+          <!-- 状态列（固定） -->
           <el-table-column
             prop="status"
             label="状态"
@@ -45,6 +56,20 @@
               <el-tag :type="getStatusType(scope.row.status)">{{ scope.row.status }}</el-tag>
             </template>
           </el-table-column>
+          
+          <!-- 动态列（根据配置动态显示） -->
+          <el-table-column
+            v-for="column in displayedExtraColumns"
+            :key="column.propName"
+            :prop="column.propName"
+            :label="column.columnName"
+            :width="column.width || column.defaultWidth">
+            <template slot-scope="scope">
+              {{ getExtraFieldValue(scope.row, column.propName) }}
+            </template>
+          </el-table-column>
+          
+          <!-- 操作列（固定） -->
           <el-table-column
             label="操作"
             width="120">
@@ -164,7 +189,7 @@
           <!-- 项目进度条 -->
           <div 
             v-for="(project, index) in projectsData" 
-            :key="project.id"
+            :key="project.index"
             class="gantt-row"
             :style="{ 
               height: `${rowHeight}px`, 
@@ -187,7 +212,7 @@
                   backgroundColor: getBarColor(project.progress)
                 }">
               </div>
-              <span class="bar-label">{{ project.name }} ({{ project.progress }}%)</span>
+              <span class="bar-label">{{ project.projName }} ({{ project.progress }}%)</span>
             </div>
           </div>
         </div>
@@ -200,13 +225,24 @@
       :visible.sync="dialogVisible"
       width="30%">
       <div v-if="currentProject">
-        <p><strong>项目名称：</strong>{{ currentProject.name }}</p>
+        <p><strong>项目名称：</strong>{{ currentProject.projName }}</p>
         <p><strong>负责人：</strong>{{ currentProject.manager }}</p>
         <p><strong>优先级：</strong>{{ currentProject.priority }}</p>
         <p><strong>开始时间：</strong>{{ currentProject.startDate }}</p>
         <p><strong>结束时间：</strong>{{ currentProject.endDate }}</p>
         <p><strong>进度：</strong>{{ currentProject.progress }}%</p>
         <p><strong>状态：</strong>{{ currentProject.status }}</p>
+        
+        <!-- 显示动态字段信息 -->
+        <template v-if="currentProject.extraFields && currentProject.extraFields.length > 0">
+          <div class="extra-fields-section">
+            <h4>附加信息</h4>
+            <p v-for="field in currentProject.extraFields.filter(f => f.show === 1)" 
+               :key="field.propName">
+              <strong>{{ field.columnName }}：</strong>{{ field.value }}
+            </p>
+          </div>
+        </template>
       </div>
       <span slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">关 闭</el-button>
@@ -216,7 +252,7 @@
 </template>
 
 <script>
-import { mockProjects, getCurrentYearMonth } from '../mockData';
+import { mockProjects, getCurrentYearMonth, availableExtraColumns } from '../mockData';
 
 export default {
   name: 'CustomGanttDemoFixed',
@@ -235,6 +271,12 @@ export default {
       type: Number,
       default: 72,
       description: '头部高度，包含年份行和月份行的高度总和'
+    },
+    // 接收要显示的动态列配置
+    extraColumns: {
+      type: Array,
+      default: () => [], // 如果父组件未提供，则默认为空数组
+      description: '要显示的动态列配置，为空时显示默认设置为显示的列'
     }
   },
   data() {
@@ -254,7 +296,30 @@ export default {
       scrollTimeout: null, // 用于滚动事件处理的防抖
       isUpdatingLines: false, // 防止重复更新网格线
       isCurrentMonthVisible: false, // 当前月份是否在显示范围内
+      // 系统所有可用动态列
+      availableColumns: [...availableExtraColumns]
     };
+  },
+  computed: {
+    // 计算当前应该显示的动态列
+    displayedExtraColumns() {
+      // 如果父组件提供了配置，则使用父组件的配置
+      if (this.extraColumns && this.extraColumns.length > 0) {
+        return this.extraColumns
+          .map(colName => {
+            // 找到可用列中的匹配项，以获取完整配置
+            const matchedCol = this.availableColumns.find(col => col.propName === colName);
+            return matchedCol || null;
+          })
+          .filter(col => col !== null) // 过滤掉不存在的列配置
+          .sort((a, b) => a.order - b.order); // 按照预定义的顺序排列
+      } else {
+        // 否则显示默认设置为显示的列
+        return this.availableColumns
+          .filter(col => col.defaultShow)
+          .sort((a, b) => a.order - b.order);
+      }
+    }
   },
   created() {
     this.initData();
@@ -301,6 +366,13 @@ export default {
     }
   },
   methods: {
+    // 获取指定项目的动态字段值
+    getExtraFieldValue(project, propName) {
+      if (!project.extraFields) return '';
+      
+      const field = project.extraFields.find(f => f.propName === propName && f.show === 1);
+      return field ? field.value : '';
+    },
     hideTableScrollbars() {
       // 获取表格体的滚动容器
       const tableBodyWrapper = this.$refs.ganttTable.$el.querySelector('.el-table__body-wrapper');
