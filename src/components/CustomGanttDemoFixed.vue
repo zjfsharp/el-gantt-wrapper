@@ -331,7 +331,11 @@ export default {
       // 当前选中的动态列
       selectedColumns: [],
       // 内部项目筛选器
-      internalFilter: this.filter
+      internalFilter: this.filter,
+      // 表格容器的最大宽度
+      maxTableWidth: 0,
+      // 当前表格容器宽度
+      currentTableWidth: 680
     };
   },
   computed: {
@@ -367,11 +371,17 @@ export default {
     this.initData();
     // 添加窗口大小变化监听器
     window.addEventListener('resize', this.handleWindowResize);
+    
+    // 初始化表格宽度
+    this.getDynamicTableWidth();
   },
   mounted() {
     this.$nextTick(() => {
       // 确保所有DOM元素完全渲染后再进行初始化操作
       setTimeout(() => {
+        // 首先计算表格动态宽度
+        this.getDynamicTableWidth();
+        
         // 先调整表格高度和行高，确保表格和甘特图初始大小一致
         this.adjustTableHeaderHeight();
         
@@ -405,6 +415,19 @@ export default {
     const ganttContainer = this.$refs.ganttChartContainer;
     if (ganttContainer) {
       ganttContainer.removeEventListener('scroll', this.onGanttScroll);
+    }
+    
+    // 清除所有定时器和动画帧
+    if (this.resizeTimeout) {
+      cancelAnimationFrame(this.resizeTimeout);
+    }
+    
+    if (this.scrollTimeout) {
+      cancelAnimationFrame(this.scrollTimeout);
+    }
+    
+    if (this.scrollAdjustTimeout) {
+      clearTimeout(this.scrollAdjustTimeout);
     }
   },
   methods: {
@@ -463,7 +486,15 @@ export default {
     // 处理列选择变化
     handleColumnChange(value) {
       console.log('选择的列变更为:', value);
-      // 可以在这里添加其他处理逻辑
+      // 实时重新计算表格宽度
+      this.$nextTick(() => {
+        this.getDynamicTableWidth();
+        // 调整表格和甘特图的尺寸
+        this.adjustTableHeaderHeight();
+        this.updateGridLines();
+      });
+      
+      // 触发事件通知父组件
       this.$emit('columns-change', value);
     },
     
@@ -615,6 +646,9 @@ export default {
       
       // 初始化可用列和选中列
       this.initAvailableColumns();
+      
+      // 计算表格宽度
+      this.getDynamicTableWidth();
       
       // 查找最早和最晚的日期
       let minDate = new Date('2099-12');
@@ -953,6 +987,9 @@ export default {
       }
       
       this.resizeTimeout = requestAnimationFrame(() => {
+        // 重新计算表格宽度
+        this.getDynamicTableWidth();
+        
         // 重新计算年份和月份标题布局
         this.recalculateHeaderLayout();
         
@@ -1201,6 +1238,9 @@ export default {
     finalAdjustment() {
       // 延迟执行，确保之前的样式已经应用
       setTimeout(() => {
+        // 重新计算表格宽度
+        this.getDynamicTableWidth();
+        
         // 重新调整表格高度
         this.adjustTableHeaderHeight();
         
@@ -1225,6 +1265,39 @@ export default {
       
       // 加上一些额外的空间用于边框和滚动条
       return `${calculatedHeight + 2}px`;
+    },
+    // 新添加的方法：计算表格的动态宽度
+    getDynamicTableWidth() {
+      // 计算基础宽度：固定列宽度总和
+      const fixedColumnsWidth = 350; // 项目名称(150) + 状态(80) + 操作(120)
+      
+      // 计算动态列的总宽度
+      let dynamicColumnsWidth = 0;
+      this.displayedExtraColumns.forEach(column => {
+        dynamicColumnsWidth += (column.width || column.defaultWidth || 120);
+      });
+      
+      // 计算总宽度
+      let totalTableWidth = fixedColumnsWidth + dynamicColumnsWidth;
+      
+      // 获取整个甘特图容器的宽度
+      const ganttContainerWidth = this.$el ? this.$el.clientWidth : window.innerWidth - 40; // 减去padding
+      
+      // 确保表格宽度不超过甘特图容器宽度的三分之二
+      const maxAllowedWidth = Math.floor(ganttContainerWidth * 2 / 3);
+      
+      // 确保最小宽度至少可以显示固定列
+      const minAllowedWidth = Math.max(fixedColumnsWidth, 350);
+      
+      // 更新最大宽度以供其他地方使用
+      this.maxTableWidth = maxAllowedWidth;
+      
+      // 返回实际宽度，不超过最大允许宽度且不小于最小允许宽度
+      this.currentTableWidth = Math.max(minAllowedWidth, Math.min(totalTableWidth, maxAllowedWidth));
+      
+      console.log(`表格宽度计算: 固定列宽度=${fixedColumnsWidth}px, 动态列宽度=${dynamicColumnsWidth}px, 总容器宽度=${ganttContainerWidth}px, 最大允许宽度=${maxAllowedWidth}px, 实际宽度=${this.currentTableWidth}px`);
+      
+      return this.currentTableWidth;
     },
   },
   watch: {
@@ -1261,6 +1334,25 @@ export default {
             this.scrollToCurrentMonth();
           });
         }
+      }
+    },
+    // 监听选中列的变化
+    selectedColumns: {
+      handler() {
+        // 当选中的列发生变化时，重新计算表格宽度
+        this.$nextTick(() => {
+          this.getDynamicTableWidth();
+        });
+      },
+      immediate: true
+    },
+    
+    // 监听窗口大小变化
+    '$el.clientWidth': {
+      handler() {
+        this.$nextTick(() => {
+          this.getDynamicTableWidth();
+        });
       }
     }
   }
@@ -1349,11 +1441,12 @@ h2 {
 
 .gantt-table-container {
   flex: 0 0 auto;
-  width: 680px; /* 等于所有固定列的宽度总和 */
+  width: v-bind('getDynamicTableWidth() + "px"'); /* 改为动态计算的宽度 */
   overflow: hidden; /* 确保外部容器不显示滚动条 */
   border-right: 2px solid #DCDFE6;
   z-index: 2; /* 确保表格在滚动时位于甘特图上层 */
   position: relative; /* 添加相对定位 */
+  transition: width 0.3s ease-in-out; /* 添加平滑过渡效果 */
 }
 
 .gantt-table-container /deep/ .gantt-table-header {
