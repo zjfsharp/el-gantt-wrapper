@@ -24,7 +24,7 @@
       :project-name-column-width="200"
       :status-column-width="80"
       :operation-column-width="100"
-      :auto-calculate-progress="false"
+      :auto-calculate-progress="true"
       @row-action="handleProjectClick">
       <template #operation="{ row }">
         <div class="operation-buttons">

@@ -199,15 +199,15 @@
             </div>
           </div>
           
-          <!-- 项目进度条 -->
+          <!-- 项目进度条 - 上移至其他网格线和指示器之上 -->
           <div 
-            v-for="(project, index) in projectsData" 
-            :key="project.index"
+            v-for="(project, index) in filteredProjects" 
+            :key="project.id || project.index"
             class="gantt-row"
             :style="{ 
               height: `${rowHeight}px`, 
               top: `${index * rowHeight}px`,
-              boxSizing: 'border-box' 
+              boxSizing: 'border-box'
             }">
             <!-- 项目进度条 -->
             <div 
@@ -1546,6 +1546,22 @@ export default {
       
       return { progress, status };
     },
+    // 确保进度条显示在网格线上方
+    enforceProgressBarRenderingOnTop() {
+      // 获取甘特图容器
+      const ganttContainer = this.$refs.ganttChartContainer;
+      if (!ganttContainer) return;
+      
+      // 获取所有网格线元素
+      const gridLines = ganttContainer.querySelectorAll('.month-grid-line');
+      
+      // 确保网格线在进度条下方
+      gridLines.forEach(line => {
+        line.style.zIndex = '1';
+      });
+      
+      console.log('已调整网格线层级，确保进度条正确显示');
+    },
   },
   watch: {
     // 监听项目数据变化，更新网格线
@@ -1805,14 +1821,10 @@ h2 {
   background-color: #FAFAFA;
   scrollbar-width: thin;
   scrollbar-color: #DCDFE6 #F5F7FA;
-  border-left: none; /* 移除左侧边框，防止重叠 */
-  box-sizing: border-box; /* 确保尺寸计算准确 */
-  will-change: scroll-position; /* 优化滚动性能 */
-  -webkit-overflow-scrolling: touch; /* 在iOS上平滑滚动 */
-  /* 确保滚动更平滑 */
-  scroll-behavior: auto;
-  /* 防止出现抖动 */
-  overscroll-behavior: none;
+  scroll-behavior: auto; /* 使用浏览器默认滚动行为，更好控制 */
+  /* 创建新的层叠上下文 */
+  isolation: isolate;
+  transform: translateZ(0); /* 启用GPU加速 */
 }
 
 .gantt-chart-container::-webkit-scrollbar {
@@ -1892,6 +1904,8 @@ h2 {
   padding: 0 8px;
   font-size: 13px;
   box-sizing: border-box; /* 确保边框计入宽度 */
+  /* 确保边界不影响进度条渲染 */
+  overflow: visible;
 }
 
 .month-cell.year-boundary-left {
@@ -1919,6 +1933,8 @@ h2 {
   /* 确保内容底部有足够空间显示完整行 */
   padding-bottom: v-bind('rowHeight + "px"');
   box-sizing: border-box;
+  /* 创建新的层叠上下文，确保子元素按预期渲染 */
+  isolation: isolate;
 }
 
 .horizontal-grid-lines {
@@ -1967,6 +1983,7 @@ h2 {
   box-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
   will-change: height; /* 优化渲染性能 */
   transition: height 0.1s ease-out; /* 平滑高度变化 */
+  z-index: 1; /* 确保网格线显示在进度条下方 */
 }
 
 .month-grid-line.year-boundary {
@@ -1993,8 +2010,6 @@ h2 {
   border-bottom: 1px solid #EBEEF5;
   transition: background-color 0.2s;
   box-sizing: border-box; /* 确保边框计入高度计算 */
-  transform: translateZ(0); /* 提高渲染性能 */
-  backface-visibility: hidden; /* 防止在某些浏览器中出现渲染问题 */
 }
 
 .gantt-row:hover {
@@ -2173,6 +2188,9 @@ h2 {
   scrollbar-width: thin;
   scrollbar-color: #DCDFE6 #F5F7FA;
   scroll-behavior: auto; /* 使用浏览器默认滚动行为，更好控制 */
+  /* 创建新的层叠上下文 */
+  isolation: isolate;
+  transform: translateZ(0); /* 启用GPU加速 */
 }
 
 /* 增强网格线的视觉效果 */
@@ -2219,6 +2237,8 @@ h2 {
   box-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
   will-change: height; /* 优化渲染性能 */
   transition: height 0.1s ease-out; /* 平滑高度变化 */
+  z-index: 1; /* 确保网格线显示在进度条下方 */
+  pointer-events: none; /* 防止网格线干扰鼠标事件 */
 }
 
 /* 当前月份指示线动画优化 */
