@@ -215,14 +215,14 @@
               :style="{
                 left: `${getBarLeftPosition(project)}px`,
                 width: `${getBarWidth(project)}px`,
-                backgroundColor: getBarBackgroundColor(project.progress)
+                backgroundColor: getBarBackgroundColor(project.progress, project.status)
               }"
               @click="handleRowAction(project)">
               <div 
                 class="progress-indicator" 
                 :style="{ 
                   width: `${project.progress}%`,
-                  backgroundColor: getBarColor(project.progress)
+                  backgroundColor: getBarColor(project.progress, project.status)
                 }">
               </div>
               <span class="bar-label">{{ project.projName }} ({{ project.progress }}%)</span>
@@ -309,6 +309,12 @@ export default {
       type: Number,
       default: 120,
       description: '操作列的宽度'
+    },
+    // 是否自动计算进度
+    autoCalculateProgress: {
+      type: Boolean,
+      default: false,
+      description: '是否根据当前日期自动计算项目进度，而不是使用原始数据中的进度值'
     }
   },
   data() {
@@ -665,6 +671,11 @@ export default {
         return;
       }
       
+      // 如果启用了自动计算进度，处理所有项目的进度
+      if (this.autoCalculateProgress) {
+        this.calculateAllProjectsProgress();
+      }
+      
       // 初始化可用列和选中列
       this.initAvailableColumns();
       
@@ -946,19 +957,55 @@ export default {
       // 如果没找到，使用默认宽度
       return this.cellWidth;
     },
-    getBarColor(progress) {
-      // 根据进度设置不同的颜色 - 这里返回实际进度的颜色，应当清晰明亮
+    getBarColor(progress, status) {
+      // 如果提供了状态参数，根据状态设置颜色
+      if (status) {
+        switch(status) {
+          case '已完成':
+            return '#67C23A'; // 绿色 - 已完成 
+          case '进行中':
+            return progress < 30 ? '#F56C6C' : // 红色 - 低进度
+                   progress < 60 ? '#E6A23C' : // 橙色 - 中进度
+                   '#409EFF'; // 蓝色 - 高进度
+          case '延期中':
+            return '#F56C6C'; // 红色 - 延期项目
+          case '计划中':
+            return '#909399'; // 灰色 - 计划中项目
+          default:
+            break;
+        }
+      }
+      
+      // 如果没有状态参数或状态不匹配，使用默认的进度颜色规则
       return progress < 30 ? '#F56C6C' : // 红色 - 低进度
              progress < 60 ? '#E6A23C' : // 橙色 - 中进度
              progress < 100 ? '#409EFF' : // 蓝色 - 高进度
              '#67C23A'; // 绿色 - 已完成
     },
-    getBarBackgroundColor(progress) {
-      // 返回进度条背景的浅色版本，作为总长度的背景色
-      return progress < 30 ? 'rgba(245, 108, 108, 0.2)' : // 浅红色
-             progress < 60 ? 'rgba(230, 162, 60, 0.2)' : // 浅橙色
-             progress < 100 ? 'rgba(64, 158, 255, 0.2)' : // 浅蓝色
-             'rgba(103, 194, 58, 0.2)'; // 浅绿色
+    getBarBackgroundColor(progress, status) {
+      // 如果提供了状态参数，根据状态设置背景颜色
+      if (status) {
+        switch(status) {
+          case '已完成':
+            return 'rgba(103, 194, 58, 0.2)'; // 浅绿色 - 已完成 
+          case '进行中':
+            return progress < 30 ? 'rgba(245, 108, 108, 0.2)' : // 浅红色 - 低进度
+                   progress < 60 ? 'rgba(230, 162, 60, 0.2)' : // 浅橙色 - 中进度
+                   'rgba(64, 158, 255, 0.2)'; // 浅蓝色 - 高进度
+          case '延期中':
+            return 'rgba(245, 108, 108, 0.3)'; // 浅红色（较深）- 延期项目
+          case '计划中':
+            return 'rgba(144, 147, 153, 0.2)'; // 浅灰色 - 计划中项目
+          default:
+            break;
+        }
+      }
+      
+      // 如果没有状态参数或状态不匹配，使用默认的背景颜色规则
+      return progress < 30 ? 'rgba(245, 108, 108, 0.2)' : // 浅红色 - 低进度
+             progress < 60 ? 'rgba(230, 162, 60, 0.2)' : // 浅橙色 - 中进度
+             progress < 100 ? 'rgba(64, 158, 255, 0.2)' : // 浅蓝色 - 高进度
+             'rgba(103, 194, 58, 0.2)'; // 浅绿色 - 已完成
     },
     getPriorityType(priority) {
       switch (priority) {
@@ -984,6 +1031,7 @@ export default {
         case '已完成': return 'success';
         case '进行中': return 'primary';
         case '计划中': return 'info';
+        case '延期中': return 'danger';
         default: return '';
       }
     },
@@ -999,6 +1047,12 @@ export default {
       const day = now.getDate();
       const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
       const weekDay = weekDays[now.getDay()];
+      
+      // 如果启用了自动计算进度，在日期文本中体现这一点
+      if (this.autoCalculateProgress) {
+        return `${month}月${day}日 (周${weekDay}) - 自动计算进度`;
+      }
+      
       return `${month}月${day}日 (周${weekDay})`;
     },
     // 处理窗口大小变化
@@ -1415,6 +1469,83 @@ export default {
         }
       });
     },
+    // 根据当前日期自动计算所有项目的进度
+    calculateAllProjectsProgress() {
+      // 获取当前日期
+      const now = new Date();
+      
+      // 处理每个项目
+      this.projectsData.forEach(project => {
+        // 计算新的进度和状态
+        const result = this.calculateProjectProgress(project, now);
+        
+        // 更新项目的进度和状态
+        project.progress = result.progress;
+        project.status = result.status;
+      });
+      
+      console.log('已自动计算所有项目的进度和状态');
+    },
+    
+    // 计算单个项目的进度和状态
+    calculateProjectProgress(project, currentDate) {
+      // 如果没有传入当前日期，则使用系统当前日期
+      const now = currentDate || new Date();
+      
+      // 解析项目的开始和结束日期
+      const startDate = new Date(`${project.startDate}-01`);
+      const endDate = new Date(`${project.endDate}-01`);
+      endDate.setMonth(endDate.getMonth() + 1); // 设为下个月的第一天，以包含整个月
+      endDate.setDate(endDate.getDate() - 1); // 设为当月的最后一天
+      
+      // 如果当前日期早于开始日期，项目尚未开始
+      if (now < startDate) {
+        return { 
+          progress: 0,
+          status: '计划中'
+        };
+      }
+      
+      // 如果当前日期晚于结束日期，项目已经完成
+      if (now > endDate) {
+        return { 
+          progress: 100,
+          status: '已完成'
+        };
+      }
+      
+      // 计算项目总时长（毫秒）
+      const totalDuration = endDate - startDate;
+      
+      // 计算已经过去的时间（毫秒）
+      const elapsedTime = now - startDate;
+      
+      // 计算进度百分比
+      let progress = Math.floor((elapsedTime / totalDuration) * 100);
+      
+      // 确保进度在0-100范围内
+      progress = Math.max(0, Math.min(100, progress));
+      
+      // 根据进度确定状态
+      let status;
+      if (progress >= 100) {
+        status = '已完成';
+      } else {
+        // 检查是否有原始进度数据，用于比较实际进度和预期进度
+        const originalProgress = project.originalProgress !== undefined ? 
+                                project.originalProgress : 
+                                project.progress;
+        
+        // 如果实际进度落后于当前应达到的进度（有一定容忍度），则标记为延期
+        if (originalProgress !== undefined && originalProgress < progress - 15) {
+          status = '延期中';
+        } else {
+          status = '进行中';
+        }
+      }
+      
+      return { progress, status };
+    },
   },
   watch: {
     // 监听项目数据变化，更新网格线
@@ -1449,6 +1580,39 @@ export default {
       },
       deep: true,
       immediate: true
+    },
+    // 监听autoCalculateProgress的变化
+    autoCalculateProgress: {
+      handler(newVal) {
+        if (this.projectsData && this.projectsData.length > 0) {
+          // 当自动计算进度的设置变化时，重新初始化数据
+          if (newVal) {
+            // 在更新进度前，保存原始进度数据
+            this.projectsData.forEach(project => {
+              if (project.originalProgress === undefined) {
+                project.originalProgress = project.progress;
+              }
+            });
+            // 计算新的进度
+            this.calculateAllProjectsProgress();
+          } else {
+            // 恢复原始进度数据（如果存在）
+            this.projectsData.forEach(project => {
+              if (project.originalProgress !== undefined) {
+                project.progress = project.originalProgress;
+                // 根据原始数据状态重置
+                if (project.progress >= 100) {
+                  project.status = '已完成';
+                } else if (project.progress > 0) {
+                  project.status = '进行中';
+                } else {
+                  project.status = '计划中';
+                }
+              }
+            });
+          }
+        }
+      }
     },
     // 监听currentMonth的变化
     currentMonth: {
