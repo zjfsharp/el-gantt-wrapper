@@ -1,0 +1,13 @@
+.git
+.babelrc
+.gitignore
+node_modules
+public
+src/assets
+src/main.js
+src/views
+src/App.vue
+webpack.config.js
+*.log
+.DS_Store
+images 

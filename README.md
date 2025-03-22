@@ -1,8 +1,11 @@
-# Vue2 + ElementUI 甘特图组件
+# el-gantt-wrapper
 
-这是一个基于Vue2和ElementUI开发的甘特图组件，具有动态列控制、项目过滤、自适应设计等特性。
+[![npm](https://img.shields.io/npm/v/el-gantt-wrapper.svg)](https://www.npmjs.com/package/el-gantt-wrapper)
+[![license](https://img.shields.io/npm/l/el-gantt-wrapper.svg)](https://github.com/yourusername/el-gantt-wrapper/blob/main/LICENSE)
 
-![ElGanttWrapper](./images/ElGanttWrapper.jpg)
+基于Vue2和ElementUI开发的甘特图组件，具有动态列控制、项目过滤、自适应设计等特性。
+
+![ElGanttWrapper](https://raw.githubusercontent.com/yourusername/el-gantt-wrapper/main/images/ElGanttWrapper.jpg)
 
 ## 特性
 
@@ -18,20 +21,24 @@
 ## 安装
 
 ```bash
-# 克隆项目
-git clone https://github.com/yourusername/gantt-demo.git
-
-# 进入项目目录
-cd gantt-demo
-
-# 安装依赖
-npm install
-
-# 启动开发服务器
-npm run dev
+npm install el-gantt-wrapper --save
 ```
 
-## 基本用法
+## 使用方法
+
+### 全局注册
+
+```js
+import Vue from 'vue';
+import ElementUI from 'element-ui';
+import 'element-ui/lib/theme-chalk/index.css';
+import { ElGanttWrapperPlugin } from 'el-gantt-wrapper';
+
+Vue.use(ElementUI);
+Vue.use(ElGanttWrapperPlugin);
+```
+
+### 局部注册
 
 ```vue
 <template>
@@ -43,7 +50,7 @@ npm run dev
 </template>
 
 <script>
-import ElGanttWrapper from './components/ElGanttWrapper.vue';
+import { ElGanttWrapper } from 'el-gantt-wrapper';
 import { mockProjects } from './mockData';
 
 export default {
@@ -109,6 +116,40 @@ export default {
 }
 ```
 
+## 浏览器兼容性
+
+该组件已在以下浏览器中测试通过：
+
+- Chrome (最新版)
+- Firefox (最新版)
+- Safari (最新版)
+- Edge (最新版)
+
+## 注意事项
+
+- 日期格式必须为`YYYY-MM`格式
+- 项目数据中的extraFields是实现动态列的关键，请确保数据格式正确
+
+## 开发
+
+```bash
+# 克隆项目
+git clone https://github.com/yourusername/el-gantt-wrapper.git
+
+# 进入项目目录
+cd el-gantt-wrapper
+
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+```
+
+## 许可证
+
+[MIT](LICENSE)
+
 ## 开发心得与总结
 
 在开发这个甘特图组件的过程中，我得到了以下重要经验和教训：
@@ -152,15 +193,6 @@ export default {
 2. **命名规范**: 使用一致的命名约定，确保代码易于理解和维护。
 
 3. **CSS模块化**: 使用scoped CSS和命名空间避免样式冲突，提高样式的可维护性。
-
-## 浏览器兼容性
-
-该组件已在以下浏览器中测试通过：
-
-- Chrome (最新版)
-- Firefox (最新版)
-- Safari (最新版)
-- Edge (最新版)
 
 ## 注意事项
 
