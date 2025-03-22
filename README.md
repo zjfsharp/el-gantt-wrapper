@@ -2,6 +2,8 @@
 
 这是一个基于Vue2和ElementUI开发的甘特图组件，具有动态列控制、项目过滤、自适应设计等特性。
 
+![ElGanttWrapper](./images/ElGanttWrapper.jpg)
+
 ## 特性
 
 - ✅ 响应式设计，适应不同屏幕尺寸
