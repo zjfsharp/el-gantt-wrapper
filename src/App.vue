@@ -16,7 +16,7 @@
       <p>这是一个基于Vue2和ElementUI的甘特图组件，支持动态列控制、项目过滤和自适应设计。</p>
     </div>
 
-    <CustomGanttDemoFixed 
+    <ElGanttWrapper 
       :projects="mockProjects" 
       :show-column-control="true" 
       :show-filter="true"
@@ -33,7 +33,7 @@
           <el-button size="mini" type="danger" icon="el-icon-delete" @click="handleDeleteProject(row)">删除</el-button> -->
         </div>
       </template>
-    </CustomGanttDemoFixed>
+    </ElGanttWrapper>
 
     <!-- 使用指南对话框 -->
     <el-dialog
@@ -45,12 +45,12 @@
       <div class="guide-content">
         <h3>基本使用</h3>
         <pre><code>
-import CustomGanttDemoFixed from './components/CustomGanttDemoFixed.vue';
+import ElGanttWrapper from './components/ElGanttWrapper.vue';
 import { mockProjects } from './mockData';
 
 export default {
   components: {
-    CustomGanttDemoFixed
+    ElGanttWrapper
   },
   data() {
     return {
@@ -110,7 +110,7 @@ export default {
         
         <h4>操作列插槽示例：</h4>
         <pre><code>
-&lt;CustomGanttDemoFixed 
+&lt;ElGanttWrapper 
   :projects="projects"
   @row-action="handleRowAction"&gt;
   &lt;template #operation="{ row }"&gt;
@@ -119,7 +119,7 @@ export default {
       &lt;el-button size="mini" @click="handleEdit(row)"&gt;编辑&lt;/el-button&gt;
     &lt;/div&gt;
   &lt;/template&gt;
-&lt;/CustomGanttDemoFixed&gt;
+&lt;/ElGanttWrapper&gt;
         </code></pre>
       </div>
       <span slot="footer" class="dialog-footer">
@@ -217,13 +217,13 @@ export default {
 </template>
 
 <script>
-import CustomGanttDemoFixed from '@/components/CustomGanttDemoFixed.vue';
+import ElGanttWrapper from '@/components/ElGanttWrapper.vue';
 import { mockProjects } from '@/mockData';
 
 export default {
   name: 'App',
   components: {
-    CustomGanttDemoFixed
+    ElGanttWrapper
   },
   data() {
     return {

@@ -33,7 +33,7 @@ npm run dev
 
 ```vue
 <template>
-  <CustomGanttDemoFixed
+  <ElGanttWrapper
     :projects="projects"
     :show-column-control="true"
     @project-click="handleProjectClick"
@@ -41,12 +41,12 @@ npm run dev
 </template>
 
 <script>
-import CustomGanttDemoFixed from './components/CustomGanttDemoFixed.vue';
+import ElGanttWrapper from './components/ElGanttWrapper.vue';
 import { mockProjects } from './mockData';
 
 export default {
   components: {
-    CustomGanttDemoFixed
+    ElGanttWrapper
   },
   data() {
     return {
